@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+	<ItemGroup>
+		<!-- 假设你的 index.html 在 WebAssets 文件夹下 -->
+		<EmbeddedResource Include="WebAssets\index.html">
+			<LogicalName>StarLaunch.WebAssets.index.html</LogicalName>
+		</EmbeddedResource>
+
+		<!-- 对 style.css 做同样处理 -->
+		<EmbeddedResource Include="WebAssets\style.css">
+			<LogicalName>StarLaunch.WebAssets.style.css</LogicalName>
+		</EmbeddedResource>
+
+		<!-- UI 交互脚本 -->
+		<EmbeddedResource Include="WebAssets\app.js">
+			<LogicalName>StarLaunch.WebAssets.app.js</LogicalName>
+		</EmbeddedResource>
+
+		<!-- 壁纸等静态资源：把图片放进 WebAssets\assets 后会自动嵌入 -->
+		<EmbeddedResource Include="WebAssets\assets\**\*" />
+	</ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+</Project>
