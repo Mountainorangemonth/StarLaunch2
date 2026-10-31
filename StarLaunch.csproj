@@ -8,28 +8,24 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
-	<ItemGroup>
-		<!-- 假设你的 index.html 在 WebAssets 文件夹下 -->
-		<EmbeddedResource Include="WebAssets\index.html">
-			<LogicalName>StarLaunch.WebAssets.index.html</LogicalName>
-		</EmbeddedResource>
-
-		<!-- 对 style.css 做同样处理 -->
-		<EmbeddedResource Include="WebAssets\style.css">
-			<LogicalName>StarLaunch.WebAssets.style.css</LogicalName>
-		</EmbeddedResource>
-
-		<!-- UI 交互脚本 -->
-		<EmbeddedResource Include="WebAssets\app.js">
-			<LogicalName>StarLaunch.WebAssets.app.js</LogicalName>
-		</EmbeddedResource>
-
-		<!-- 壁纸等静态资源：把图片放进 WebAssets\assets 后会自动嵌入 -->
-		<EmbeddedResource Include="WebAssets\assets\**\*" />
-	</ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
   </ItemGroup>
+  <Target Name="BuildFrontend" BeforeTargets="BeforeBuild">
+    <!-- 仅在 package.json 比上次构建 stamp 新时安装依赖，避免每次全量 npm install
+         （注意：MSBuild 条件的 > 只能做数值比较，须取 DateTime.Ticks；路径锚定项目目录防解析歧义） -->
+    <Exec Command="npm install" WorkingDirectory="frontend" Condition="!Exists('$(MSBuildProjectDirectory)/frontend/node_modules/.install-stamp') Or $([System.IO.File]::GetLastWriteTime('$(MSBuildProjectDirectory)/frontend/package.json').Ticks) &gt; $([System.IO.File]::GetLastWriteTime('$(MSBuildProjectDirectory)/frontend/node_modules/.install-stamp').Ticks)" />
+    <Touch Files="frontend/node_modules/.install-stamp" AlwaysCreate="true" />
 
+    <!-- 构建前端，产物输出到 WebAssets/ -->
+    <Exec Command="npm run build" WorkingDirectory="frontend" />
+  </Target>
+
+  <Target Name="AddFrontendAssets" AfterTargets="BuildFrontend">
+    <ItemGroup>
+      <EmbeddedResource Include="WebAssets\index.html;WebAssets\style.css;WebAssets\app.js" />
+      <EmbeddedResource Include="WebAssets\assets\**\*" />
+    </ItemGroup>
+  </Target>
+	
 </Project>

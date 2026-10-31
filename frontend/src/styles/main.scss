@@ -1,0 +1,18 @@
+/* StarLaunch UI 样式 · 由 frontend 工程构建产出
+   迁移自原 WebAssets/style.css（分片见各 @use，类名/选择器与源码逐字一致）
+   模块顺序与原文件级联顺序保持一致，勿随意调整。 */
+
+@use 'titlebar';   // 拖拽规则（配合宿主 IsNonClientRegionSupportEnabled）
+@use 'tokens';     // 设计变量与主题色
+@use 'base';       // 基础重置
+@use 'wallpaper';  // 背景层与装饰动画
+@use 'shell';      // 应用骨架 / 标题栏外观 / 工作台
+@use 'glass';      // 玻璃拟态与通用卡片
+@use 'rail';       // 左侧导航
+@use 'core';       // 主区域与全局关键帧
+@use 'home';       // 主页
+@use 'versions';   // 版本管理
+@use 'download';   // 下载中心
+@use 'settings';   // 设置
+@use 'overlays';   // 浮层 / 弹窗 / Toast / 性能模式与拖放
+@use 'responsive'; // 响应式

@@ -1,0 +1,27 @@
+/* 迁移自 WebAssets/style.css L9-34 · 标题栏拖拽规则（配合宿主的 IsNonClientRegionSupportEnabled） */
+/* ---------------- 用户原有规则（保留拖拽/禁选行为） ---------------- */
+body {
+    -webkit-user-select: none; /* 兼容 WebKit 内核 */
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+/* 如果希望输入框等可编辑元素仍能正常选择，需要显式放行 */
+input, textarea, [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.custom-titlebar {
+    /* 关键属性，让这个区域像标题栏一样可以拖动 */
+    app-region: drag;
+    -webkit-app-region: drag;
+    height: 40px;
+    background: transparent;
+    color: var(--ink);
+}
+/* 如果标题栏内有按钮，需要单独排除，否则按钮无法点击 */
+.custom-titlebar button {
+    app-region: no-drag;
+    -webkit-app-region: no-drag;
+}
