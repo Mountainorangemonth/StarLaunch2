@@ -54,18 +54,7 @@ namespace StarLaunch
             core.WebResourceRequested += OnWebResourceRequested;
             // 启用对非客户区（可拖拽区域）的支持
             webView.CoreWebView2.Settings.IsNonClientRegionSupportEnabled = true;
-
             // 2. 导航到虚拟域名（此地址磁盘上不存在）
-            // Debug 构建通过环境变量 STARLAUNCH_DEV_URL 切到 Vite dev server，便于 HMR 联调；
-            // Release 行为与之前完全一致。
-#if DEBUG
-            var devUrl = Environment.GetEnvironmentVariable("STARLAUNCH_DEV_URL");
-            if (!string.IsNullOrEmpty(devUrl))
-            {
-                core.Navigate(devUrl);
-                return;
-            }
-#endif
             core.Navigate("https://app.local/index.html");
         }
 
@@ -160,7 +149,7 @@ namespace StarLaunch
             {
                 // 如果资源找不到，明确返回 404，方便在页面上看到错误
                 e.Response = webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                    null, 404, "Not Found", "Content-Type: text/plain\r\nCache-Control: no-store");
+                    null, 404, "Not Found", "Content-Type: text/plain");
                 return;
             }
 
@@ -179,9 +168,8 @@ namespace StarLaunch
             };
 
             // 关键：必须设置 e.Response，WebView2 才会使用你的数据
-            // no-store：前端入口文件名固定（app.js/style.css），禁止磁盘缓存跨启动复用旧版
             e.Response = webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                stream, 200, "OK", $"Content-Type: {contentType}\r\nCache-Control: no-store");
+                stream, 200, "OK", $"Content-Type: {contentType}");
         }
 
        
