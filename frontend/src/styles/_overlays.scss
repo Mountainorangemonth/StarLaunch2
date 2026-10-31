@@ -1,0 +1,260 @@
+/* 迁移自 WebAssets/style.css L2414-2672 · 浮层/弹窗/Toast/性能模式与拖放 */
+/* ---------------- 账户浮层 ---------------- */
+.account-pop {
+    position: fixed;
+    left: 86px;
+    bottom: 30px;
+    width: 280px;
+    animation-name: pop-in-left;
+}
+@keyframes pop-in-left {
+    from { opacity: 0; transform: translateX(-6px) scale(.985); }
+    to { opacity: 1; transform: none; }
+}
+.pop-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 8px 11px;
+    border-bottom: 1px solid rgba(22, 44, 84, .07);
+}
+.pop-head > div:nth-child(2) { flex: 1; min-width: 0; }
+.pop-name { font-size: 12px; font-weight: 650; }
+.pop-sub { margin-top: 1px; font-size: 9px; color: var(--ink-3); }
+.pop-list { display: flex; flex-direction: column; gap: 1px; padding: 6px 0; }
+.pop-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    text-align: left;
+    font-size: 11px;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background .14s var(--ease), color .14s var(--ease);
+}
+.pop-item .icon { width: 14px; height: 14px; color: var(--ink-3); }
+.pop-item:hover { background: rgba(47, 108, 246, .07); color: var(--ink); }
+.pop-item:hover .icon { color: var(--accent); }
+
+/* ---------------- 启动弹窗 ---------------- */
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+.modal[hidden] { display: none; }
+.modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(16, 30, 56, .3);
+    animation: fade-in .25s var(--ease) both;
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.modal-card {
+    position: relative;
+    width: min(420px, 92vw);
+    padding: 22px 22px 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, .85);
+    background: rgba(255, 255, 255, .92);
+    box-shadow: 0 40px 80px -32px rgba(10, 28, 60, .55), inset 0 1px 0 #fff;
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    animation: modal-in .3s var(--ease) both;
+}
+@keyframes modal-in {
+    from { opacity: 0; transform: translateY(10px) scale(.98); }
+    to { opacity: 1; transform: none; }
+}
+.launch-head { display: flex; align-items: center; gap: 12px; }
+.launch-orb {
+    position: relative;
+    width: 46px; height: 46px;
+    flex: none;
+    border-radius: 14px;
+    display: grid; place-items: center;
+    color: #fff;
+    background: linear-gradient(145deg, var(--accent), var(--accent-2));
+    box-shadow: 0 12px 24px -12px var(--accent-glow);
+}
+.launch-orb .icon { width: 17px; height: 17px; }
+.launch-orb::before {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: 18px;
+    border: 1.5px solid transparent;
+    border-top-color: rgba(47, 108, 246, .5);
+    border-right-color: rgba(47, 108, 246, .16);
+    animation: spin 1.1s linear infinite;
+}
+.modal.is-done .launch-orb { background: linear-gradient(145deg, #1fae91, #83e4ca); }
+.modal.is-done .launch-orb::before { animation: none; border-color: rgba(31, 174, 145, .38); }
+.modal.is-done .launch-head-copy h2 { color: #0f7a66; }
+.launch-head-copy { flex: 1; min-width: 0; }
+.launch-head-copy h2 {
+    margin-top: 2px;
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.launch-meta { margin-top: 10px; font-size: 9.5px; color: var(--ink-3); }
+.launch-progress {
+    height: 5px;
+    margin-top: 12px;
+    border-radius: 99px;
+    background: rgba(22, 44, 84, .08);
+    overflow: hidden;
+}
+.launch-progress i {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width .5s var(--ease);
+}
+.launch-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 7px;
+    font-size: 10px;
+    color: var(--ink-2);
+}
+.launch-status b { color: var(--accent-deep); font-size: 10px; font-variant-numeric: tabular-nums; }
+.launch-log {
+    max-height: 92px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(22, 44, 84, .045);
+    border: 1px solid rgba(255, 255, 255, .6);
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    line-height: 1.75;
+    color: var(--ink-3);
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+.launch-log p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.launch-log:empty { display: none; }
+.launch-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.launch-actions .btn { min-width: 88px; }
+
+/* ---------------- Toast ---------------- */
+.toasts {
+    position: fixed;
+    right: 24px;
+    bottom: 22px;
+    z-index: 120;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: none;
+}
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 320px;
+    padding: 9px 13px;
+    border-radius: 11px;
+    border: 1px solid rgba(255, 255, 255, .85);
+    background: rgba(255, 255, 255, .93);
+    box-shadow: 0 16px 34px -16px rgba(16, 42, 92, .4), inset 0 1px 0 #fff;
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    font-size: 11px;
+    color: var(--ink-2);
+    opacity: 0;
+    transform: translateY(8px) scale(.98);
+    transition: opacity .24s var(--ease), transform .24s var(--ease);
+}
+.toast.is-in { opacity: 1; transform: none; }
+.toast.is-out { opacity: 0; transform: translateY(6px) scale(.98); }
+.toast .icon { width: 14px; height: 14px; color: var(--accent); }
+.toast--ok .icon { color: var(--green); }
+
+/* ---------------- 性能模式 / 拖放换背景 ---------------- */
+html[data-performance="on"] .card,
+html[data-performance="on"] .rail,
+html[data-performance="on"] .popover,
+html[data-performance="on"] .toast,
+html[data-performance="on"] .modal-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(255, 255, 255, .95) !important;
+}
+html[data-performance="on"] .wallpaper__art { display: none; }
+html[data-performance="on"] .card,
+html[data-performance="on"] .view.is-active,
+html[data-performance="on"] .dl-row,
+html[data-performance="on"] .quick-item {
+    animation: none !important;
+}
+html[data-performance="on"] .dl-progress i { animation: none; width: 88%; }
+html[data-performance="on"] .btn { transition-duration: .01ms; }
+html[data-performance="on"] .range { box-shadow: none; }
+
+.is-hidden .cloud,
+.is-hidden .petal,
+.is-hidden .art-grain,
+.is-hidden .week-chart span {
+    animation-play-state: paused !important;
+}
+
+.drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 140;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(18, 32, 58, .28);
+    pointer-events: none;
+    animation: fade-in .18s var(--ease) both;
+}
+.drop-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    max-width: 420px;
+    padding: 26px 36px 24px;
+    border-radius: 22px;
+    border: 2px dashed rgba(255, 255, 255, .92);
+    background: rgba(255, 255, 255, .93);
+    box-shadow: 0 34px 70px -30px rgba(10, 28, 60, .5), inset 0 1px 0 #fff;
+    text-align: center;
+}
+.drop-ico {
+    width: 46px; height: 46px;
+    display: grid; place-items: center;
+    border-radius: 14px;
+    color: #fff;
+    background: linear-gradient(145deg, var(--accent), var(--accent-2));
+    box-shadow: 0 12px 22px -12px var(--accent-glow);
+}
+.drop-ico .icon { width: 20px; height: 20px; }
+.drop-card b { font-size: 15px; font-weight: 650; color: var(--ink); }
+.drop-card span:last-child { font-size: 10px; color: var(--ink-3); }
+
+.range:disabled {
+    cursor: not-allowed;
+    opacity: .5;
+}
+.range:disabled::-webkit-slider-thumb { cursor: not-allowed; }

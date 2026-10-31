@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Vue
+node_modules/
+dist/
+# 前端构建产物（由 StarLaunch.csproj 的 BuildFrontend target 自动生成）
+WebAssets/
+
+CLAUDE.md

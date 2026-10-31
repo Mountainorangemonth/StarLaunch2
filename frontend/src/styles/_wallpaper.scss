@@ -1,0 +1,134 @@
+/* 迁移自 WebAssets/style.css L161-293 · 背景层 */
+/* ---------------- 背景层 ---------------- */
+.wallpaper {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    background: linear-gradient(165deg, #a9d3f7 0%, #cbe6fc 40%, #eef8ff 100%);
+}
+.wallpaper__img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 42%;
+    opacity: 0;
+    transform: scale(1.015);
+    transition: opacity .9s var(--ease), transform 1.6s var(--ease);
+}
+.wallpaper.is-photo .wallpaper__img { opacity: 1; transform: none; }
+
+.wallpaper__art {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    transition: opacity .7s var(--ease);
+}
+.wallpaper.is-photo .wallpaper__art { display: none; }
+
+.art-sky {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(52% 50% at 80% 10%, #fff6df 0%, rgba(255, 246, 223, 0) 62%),
+        radial-gradient(52% 46% at 94% 40%, rgba(255, 176, 206, .66), rgba(255, 176, 206, 0) 70%),
+        radial-gradient(80% 60% at 4% 4%, rgba(255, 255, 255, .78), rgba(255, 255, 255, 0) 58%),
+        linear-gradient(178deg, #8ec9f7 0%, #b3dcfb 32%, #d9effe 62%, #f2faff 100%);
+}
+.art-sun {
+    position: absolute;
+    right: 3%; top: -20%;
+    width: 620px; height: 620px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 253, 246, 1) 0%, rgba(255, 236, 195, .66) 36%, rgba(255, 236, 195, 0) 70%);
+    filter: blur(6px);
+}
+.art-aura {
+    position: absolute;
+    right: -4%; top: 4%;
+    width: 820px; height: 820px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 176, 205, .52) 0%, rgba(255, 176, 205, 0) 66%);
+    filter: blur(24px);
+}
+.cloud {
+    position: absolute;
+    height: 54px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .98);
+    filter: blur(12px);
+    opacity: .82;
+    animation: cloud-drift 38s ease-in-out infinite alternate;
+}
+.cloud::before {
+    content: "";
+    position: absolute;
+    left: 15%; bottom: 14%;
+    width: 46%; height: 155%;
+    border-radius: 50%;
+    background: inherit;
+}
+.cloud::after {
+    content: "";
+    position: absolute;
+    right: 12%; bottom: 0;
+    width: 38%; height: 122%;
+    border-radius: 50%;
+    background: inherit;
+}
+.cloud--1 { width: 340px; left: 1%; top: 25%; }
+.cloud--2 { width: 250px; left: 47%; top: 6%; height: 44px; opacity: .56; animation-delay: -8s; }
+.cloud--3 { width: 440px; right: -9%; top: 37%; height: 64px; opacity: .48; animation-delay: -16s; }
+.cloud--4 { width: 290px; left: 23%; bottom: 15%; height: 44px; opacity: .5; animation-delay: -24s; }
+
+.art-hills {
+    position: absolute;
+    left: -4%; right: -4%; bottom: -1%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .62), rgba(170, 207, 236, .28));
+}
+.art-hills--back {
+    height: 27%;
+    opacity: .5;
+    clip-path: polygon(0 62%, 12% 62%, 12% 40%, 26% 40%, 26% 56%, 38% 56%, 38% 28%, 52% 28%, 52% 50%, 66% 50%, 66% 34%, 80% 34%, 80% 58%, 92% 58%, 92% 44%, 100% 44%, 100% 100%, 0 100%);
+}
+.art-hills--front {
+    height: 16%;
+    opacity: .52;
+    clip-path: polygon(0 70%, 16% 70%, 16% 48%, 32% 48%, 32% 72%, 46% 72%, 46% 40%, 62% 40%, 62% 66%, 78% 66%, 78% 30%, 90% 30%, 90% 52%, 100% 52%, 100% 100%, 0 100%);
+}
+.petal {
+    position: absolute;
+    width: 11px; height: 17px;
+    border-radius: 72% 28% 62% 38%;
+    background: linear-gradient(145deg, rgba(255, 205, 222, .95), rgba(255, 168, 199, .55));
+    filter: blur(.3px);
+    opacity: .68;
+    animation: petal-float 13s ease-in-out infinite alternate;
+}
+.petal--1 { right: 20%; top: 21%; rotate: 22deg; }
+.petal--2 { right: 11%; top: 38%; width: 8px; height: 13px; rotate: -38deg; animation-delay: -4s; }
+.petal--3 { right: 31%; top: 12%; width: 7px; height: 12px; rotate: 64deg; opacity: .5; animation-delay: -7s; }
+.petal--4 { left: 46%; top: 30%; width: 8px; height: 12px; rotate: -12deg; opacity: .38; animation-delay: -9s; }
+.petal--5 { right: 43%; bottom: 26%; width: 10px; height: 15px; rotate: 120deg; opacity: .34; animation-delay: -2s; }
+
+.art-grain {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, .7) 1px, transparent 1.4px);
+    background-size: 38px 38px;
+    opacity: .16;
+    mix-blend-mode: soft-light;
+}
+.wallpaper__veil {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(132% 108% at 3% -4%,
+            rgba(255, 255, 255, var(--veil-a, .78)) 0%,
+            rgba(255, 255, 255, calc(var(--veil-a, .78) * .42)) 38%,
+            rgba(255, 255, 255, 0) 66%),
+        linear-gradient(180deg, rgba(255, 255, 255, .2) 0%, rgba(255, 255, 255, 0) 24%);
+}
