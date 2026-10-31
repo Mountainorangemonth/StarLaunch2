@@ -82,6 +82,7 @@ StarLaunch/
 ├─ LICENSE.txt              # Apache 2.0
 ├─ README.md
 ├─ CLAUDE.md                # Claude Code 项目指引（也是一种项目文档）
+├─ docs/                    # 前端组件使用文档（属性化 Sl* 控件库 + 页面级组件）
 │
 ├─ WebAssets/               # 前端构建产物（由 frontend/ 生成，git 不入库，勿手改）
 │  ├─ index.html
@@ -104,9 +105,11 @@ StarLaunch/
       ├─ router/index.js    # hash 路由与页面元信息
       ├─ stores/            # Pinia：instance/download/launch/appearance/ui/toast/wallpaper
       ├─ composables/       # useClock / useWindowControl（三级降级协议）
-      ├─ data/              # 实例、下载列表、语录等静态数据
+      ├─ data/              # 静态数据/文案（实例、下载、语录及主页五个区块的默认值）
       ├─ views/             # Home / Versions / Download / Settings
-      ├─ components/        # 壳层与控件组件
+      ├─ components/
+      │  ├─ ui/             # 通用控件库 Sl*：SlButton/SlIcon/SlCard/SlSwitch/SlRange/SlSeg/SlTag/SlPopover/SlModal/SlEmpty
+      │  └─ home/           # 页面级可复用组件：HeroQuote/NoticeBoard/AccountCard/SystemCard/WeekCard/QuickGrid
       └─ styles/            # SCSS partials（源自 style.css，按分区拆分）
 ```
 
@@ -114,6 +117,7 @@ StarLaunch/
 
 - `WebAssets/README.md` — 界面设计说明与数据来源（被嵌入前由 `frontend/public/` 提供）。
 - `WebAssets/assets/README.txt` — 壁纸与静态资源说明。
+- `docs/前端组件使用文档.md` — 属性化可复用组件（`components/ui/` + `components/home/`）的使用文档：属性、事件、插槽与示例。
 
 ## 许可证
 

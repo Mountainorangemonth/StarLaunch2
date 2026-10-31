@@ -1,17 +1,20 @@
 <script setup>
 import { useDownloadStore } from '../stores/download'
 import { useToastStore } from '../stores/toast'
-import Icon from '../components/Icon.vue'
-import SegControl from '../components/SegControl.vue'
+import SlIcon from '../components/ui/SlIcon.vue'
+import SlButton from '../components/ui/SlButton.vue'
+import SlSeg from '../components/ui/SlSeg.vue'
+import SlCard from '../components/ui/SlCard.vue'
+import SlEmpty from '../components/ui/SlEmpty.vue'
 
 const store = useDownloadStore()
 const toast = useToastStore()
 
 const TABS = [
-  { key: 'version', label: '游戏本体' },
-  { key: 'modpack', label: '整合包' },
-  { key: 'mod', label: '模组' },
-  { key: 'resource', label: '资源包' }
+  { value: 'version', label: '游戏本体' },
+  { value: 'modpack', label: '整合包' },
+  { value: 'mod', label: '模组' },
+  { value: 'resource', label: '资源包' }
 ]
 
 const SOURCES = [
@@ -47,12 +50,10 @@ function rowClass(item) {
       </div>
       <div class="page-actions">
         <label class="search">
-          <svg class="icon"><use href="#i-search"/></svg>
+          <SlIcon name="i-search" />
           <input v-model="store.query" type="search" placeholder="搜索版本、整合包…" aria-label="搜索下载内容" autocomplete="off">
         </label>
-        <button class="btn btn-ghost" type="button" @click="toast.push('已刷新下载索引')">
-          <svg class="icon"><use href="#i-refresh"/></svg>刷新索引
-        </button>
+        <SlButton variant="ghost" icon="i-refresh" text="刷新索引" @click="toast.push('已刷新下载索引')" />
       </div>
     </header>
 
@@ -64,9 +65,7 @@ function rowClass(item) {
             <h2>Minecraft 1.21.4 <span>「冬季更新」</span></h2>
             <p>新的苍白橡木林、树脂方块与生物群系，一键安装并自动补全运行库。</p>
             <div class="dlf-actions">
-              <button class="btn btn-primary" type="button" @click="store.start('mc-1214')">
-                <Icon name="i-play" fill />立即安装
-              </button>
+              <SlButton variant="primary" icon="i-play" fill text="立即安装" @click="store.start('mc-1214')" />
               <span class="dlf-note">约 386 MB · 官方源 · Java 21</span>
             </div>
           </div>
@@ -78,7 +77,7 @@ function rowClass(item) {
         </section>
 
         <div class="dl-toolbar">
-          <SegControl v-model="store.category" :options="TABS" aria-label="下载分类" />
+          <SlSeg v-model="store.category" :items="TABS" aria-label="下载分类" />
           <span class="dl-count">{{ store.countLabel }}</span>
         </div>
 
@@ -98,41 +97,37 @@ function rowClass(item) {
             </div>
             <div class="dl-row-side">
               <span class="dl-size">{{ item.size }}</span>
-              <button
-                class="btn btn-ghost dl-action"
+              <SlButton
+                variant="ghost"
+                class="dl-action"
                 :class="{ 'is-done': store.stateOf(item.id) === 'done' }"
-                type="button"
                 :disabled="store.stateOf(item.id) !== 'idle'"
                 @click="store.start(item.id)"
-              >{{ stateLabel(item) }}</button>
+              >{{ stateLabel(item) }}</SlButton>
             </div>
           </article>
         </div>
-        <p class="empty-note dl-empty" v-show="store.filtered.length === 0">这个分类下没有匹配内容，试试其他关键词。</p>
+        <SlEmpty v-show="store.filtered.length === 0" class="dl-empty" text="这个分类下没有匹配内容，试试其他关键词。" />
 
-        <section class="card history-card" style="--d:.16s">
-          <header class="card-head">
-            <div class="head-title">
-              <h2>下载历史</h2>
-              <span class="micro">HISTORY</span>
-            </div>
-            <button class="link-btn" type="button" @click="toast.push('已清空下载历史')">清空记录</button>
-          </header>
+        <SlCard title="下载历史" micro="HISTORY" class="history-card" style="--d:.16s">
+          <template #headerAfter>
+            <SlButton variant="link" text="清空记录" @click="toast.push('已清空下载历史')" />
+          </template>
           <div class="history-list">
             <div class="history-row">
-              <span class="history-icon"><svg class="icon"><use href="#i-download"/></svg></span>
+              <span class="history-icon"><SlIcon name="i-download" /></span>
               <div class="history-copy"><b>Minecraft 1.20.1</b><span>2026-10-28 · 官方源 · 386 MB</span></div>
               <span class="status-chip"><i></i>已完成</span>
-              <button class="link-btn" type="button" @click="store.start('mc-1201')">重新下载</button>
+              <SlButton variant="link" text="重新下载" @click="store.start('mc-1201')" />
             </div>
             <div class="history-row">
-              <span class="history-icon"><svg class="icon"><use href="#i-copy"/></svg></span>
+              <span class="history-icon"><SlIcon name="i-copy" /></span>
               <div class="history-copy"><b>NeoForge 20.4.237</b><span>2026-10-26 · BMCLAPI · 18 MB</span></div>
               <span class="status-chip"><i></i>已完成</span>
-              <button class="link-btn" type="button" @click="toast.push('已打开安装日志')">查看日志</button>
+              <SlButton variant="link" text="查看日志" @click="toast.push('已打开安装日志')" />
             </div>
           </div>
-        </section>
+        </SlCard>
       </div>
 
       <aside class="dl-side">
@@ -173,11 +168,11 @@ function rowClass(item) {
             <div class="qi-track"><i style="width:0%"></i></div>
             <div class="qi-meta"><span>排队中 · 0 B/s</span><span>—</span></div>
           </div>
-          <button class="btn btn-ghost qi-clear" type="button" @click="toast.push('已清空已完成的下载任务')">清空已完成</button>
+          <SlButton variant="ghost" class="qi-clear" text="清空已完成" @click="toast.push('已清空已完成的下载任务')" />
         </section>
 
         <section class="card tip-card" style="--d:.22s">
-          <span class="head-ico"><svg class="icon"><use href="#i-shield"/></svg></span>
+          <span class="head-ico"><SlIcon name="i-shield" /></span>
           <div>
             <b>只从可信来源安装</b>
             <p>StarLaunch 会对下载文件做 SHA-1 校验，第三方来源请自行确认。</p>

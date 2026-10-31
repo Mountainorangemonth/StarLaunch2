@@ -113,3 +113,6 @@
 .btn-sm { height: 30px; padding: 0 11px; font-size: 11px; border-radius: 9px; }
 .btn-launch { height: 44px; padding: 0 21px; font-size: 13px; border-radius: 13px; }
 .btn-launch .icon { width: 14px; height: 14px; }
+/* SlButton 属性修饰：shadow → 底部强调投影；block → 占满父宽居中 */
+.btn.is-shadow { box-shadow: 0 14px 26px -14px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, .38); }
+.btn.is-block { display: flex; width: 100%; }

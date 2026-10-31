@@ -3,6 +3,8 @@ import { nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useInstanceStore, modsLabel } from '../stores/instance'
 import { useUiStore } from '../stores/ui'
+import SlPopover from './ui/SlPopover.vue'
+import SlIcon from './ui/SlIcon.vue'
 
 const props = defineProps({ open: Boolean })
 const emit = defineEmits(['picked'])
@@ -28,7 +30,7 @@ function pick(id) {
 </script>
 
 <template>
-  <div class="popover inst-pop" role="listbox" aria-label="选择实例" v-show="open">
+  <SlPopover :open="open" class="inst-pop" role="listbox" aria-label="选择实例">
     <div class="pop-headline">
       <span class="micro">选择实例</span>
       <span class="pop-count">{{ store.instances.length }} 个可用</span>
@@ -49,13 +51,13 @@ function pick(id) {
           <span class="inst-option-title">{{ inst.name }} <span class="badge">{{ inst.tag }}</span></span>
           <span class="inst-option-meta">{{ inst.mc }} · {{ modsLabel(inst) }} · {{ inst.last }}</span>
         </span>
-        <svg class="icon inst-option-check" aria-hidden="true"><use href="#i-check"/></svg>
+        <SlIcon name="i-check" class="inst-option-check" />
       </button>
     </div>
     <div class="pop-foot">
       <button class="link-btn" type="button" @click="ui.instPickerOpen = false; router.push('/versions')">
-        管理全部实例<svg class="icon"><use href="#i-chevron-right"/></svg>
+        管理全部实例<SlIcon name="i-chevron-right" />
       </button>
     </div>
-  </div>
+  </SlPopover>
 </template>

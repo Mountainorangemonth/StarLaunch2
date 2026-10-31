@@ -2,6 +2,8 @@
 import { nextTick, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useUiStore } from '../stores/ui'
 import { useToastStore } from '../stores/toast'
+import SlPopover from './ui/SlPopover.vue'
+import SlIcon from './ui/SlIcon.vue'
 
 const props = defineProps({ open: Boolean })
 
@@ -11,7 +13,7 @@ const pop = ref(null)
 
 // 与原实现一致：相对 rail-avatar 定位，并在窗口尺寸变化/打开时重算
 function position() {
-  const el = pop.value
+  const el = pop.value && pop.value.$el
   const trigger = document.querySelector('#railAvatar')
   if (!el || !trigger) return
   const rect = trigger.getBoundingClientRect()
@@ -35,7 +37,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', position))
 </script>
 
 <template>
-  <div ref="pop" class="popover account-pop" role="menu" aria-label="账户菜单" v-show="open">
+  <SlPopover ref="pop" :open="open" class="account-pop" role="menu" aria-label="账户菜单">
     <div class="pop-head">
       <span class="avatar avatar--sm"><svg class="steve" aria-hidden="true"><use href="#art-steve"/></svg></span>
       <div>
@@ -46,21 +48,21 @@ onBeforeUnmount(() => window.removeEventListener('resize', position))
     </div>
     <div class="pop-list">
       <button class="pop-item" type="button" role="menuitem" @click="ui.accountOpen = false; act('打开微软账户登录窗口')">
-        <svg class="icon"><use href="#i-user"/></svg><span>切换账户</span>
+        <SlIcon name="i-user" /><span>切换账户</span>
       </button>
       <button class="pop-item" type="button" role="menuitem" @click="ui.accountOpen = false; act('正在刷新皮肤…')">
-        <svg class="icon"><use href="#i-refresh"/></svg><span>刷新皮肤</span>
+        <SlIcon name="i-refresh" /><span>刷新皮肤</span>
       </button>
       <button class="pop-item" type="button" role="menuitem" @click="ui.accountOpen = false; act('已打开游戏目录')">
-        <svg class="icon"><use href="#i-folder"/></svg><span>打开游戏目录</span>
+        <SlIcon name="i-folder" /><span>打开游戏目录</span>
       </button>
       <button class="pop-item" type="button" role="menuitem" @click="ui.accountOpen = false; act('已打开账户设置')">
-        <svg class="icon"><use href="#i-sliders"/></svg><span>账户设置</span>
+        <SlIcon name="i-sliders" /><span>账户设置</span>
       </button>
     </div>
     <div class="pop-foot">
       <span class="micro">UUID 6F2A…9C1D</span>
       <button class="link-btn" type="button" @click="ui.accountOpen = false; act('打开账户管理页面')">管理账户</button>
     </div>
-  </div>
+  </SlPopover>
 </template>
