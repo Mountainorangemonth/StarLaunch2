@@ -16,6 +16,5 @@
         <DockPanel>
             <wv2:WebView2 x:Name="webView" />
         </DockPanel>
-        <wv2:WebView2 Height="100" Width="100"/>
     </Grid>
 </Window>
