@@ -24,6 +24,15 @@
 			<LogicalName>StarLaunch.WebAssets.app.js</LogicalName>
 		</EmbeddedResource>
 
+		<!-- 主题引擎：index.html 用 <script> 引用了这两个文件，
+		     漏掉任何一个，WebView2 里都会 404，StarTheme 就不存在 -->
+		<EmbeddedResource Include="WebAssets\mcu.js">
+			<LogicalName>StarLaunch.WebAssets.mcu.js</LogicalName>
+		</EmbeddedResource>
+		<EmbeddedResource Include="WebAssets\theme.js">
+			<LogicalName>StarLaunch.WebAssets.theme.js</LogicalName>
+		</EmbeddedResource>
+
 		<!-- 壁纸等静态资源：把图片放进 WebAssets\assets 后会自动嵌入 -->
 		<EmbeddedResource Include="WebAssets\assets\**\*" />
 	</ItemGroup>

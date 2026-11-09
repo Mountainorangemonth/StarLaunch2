@@ -26,10 +26,30 @@ namespace StarLaunch
 
         private async System.Threading.Tasks.Task InitWebViewAsync()
         {
+            try
+            {
+                // WebView2 的缓存和用户数据放到 %LOCALAPPDATA%，不要放在 exe 旁边：
+                // 程序位于 Program Files 等只读目录时，默认位置会创建失败，
+                // 表现为启动即崩溃或白屏。
+                string userDataFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "StarLaunch", "WebView2");
+                Directory.CreateDirectory(userDataFolder);
 
-
-
-            await webView.EnsureCoreWebView2Async();
+                var environment = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                await webView.EnsureCoreWebView2Async(environment);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "无法初始化内嵌浏览器（WebView2）。\n\n" +
+                    "请确认系统已安装 Microsoft Edge WebView2 Runtime；\n" +
+                    "如果程序放在受保护目录，请换到可写目录再试。\n\n" +
+                    "错误信息：" + ex.Message,
+                    "StarLaunch", MessageBoxButton.OK, MessageBoxImage.Error);
+                Close();
+                return;
+            }
 
             var core = webView.CoreWebView2;
             // 方式一：全局禁用默认上下文菜单（推荐）
@@ -149,7 +169,8 @@ namespace StarLaunch
             {
                 // 如果资源找不到，明确返回 404，方便在页面上看到错误
                 e.Response = webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                    null, 404, "Not Found", "Content-Type: text/plain");
+                    null, 404, "Not Found",
+                    "Content-Type: text/plain\r\nCache-Control: no-store");
                 return;
             }
 
@@ -168,8 +189,10 @@ namespace StarLaunch
             };
 
             // 关键：必须设置 e.Response，WebView2 才会使用你的数据
+            // no-store：重新编译后不会继续用缓存里的旧 index.html / app.js
             e.Response = webView.CoreWebView2.Environment.CreateWebResourceResponse(
-                stream, 200, "OK", $"Content-Type: {contentType}");
+                stream, 200, "OK",
+                $"Content-Type: {contentType}\r\nCache-Control: no-store");
         }
 
        
