@@ -23,7 +23,7 @@
 
 - **四个页面**：启动、版本、下载、设置，全部离线可用。
 - **Material You 动态配色**：源色 → HCT → M3 Scheme → CSS 变量，切换源色/变体/明暗/对比度即时生效。
-- **从壁纸取色**：选择或拖入一张图片，自动压缩、量化、打分选出源色，并按壁纸亮度推算遮罩。
+- **壁纸库与轮播**：宿主自动扫描 exe 同级的 `wallpapers` 目录（不可写时退回 LocalAppData），支持随机 / 顺序切换和 1 / 5 / 10 / 30 分钟间隔，并从当前壁纸取色。
 - **琉璃式材质**：玻璃层只挂在最外层，浮层保持不透明，避免“玻璃叠玻璃”。
 - **启动器外壳**：无边框自定义标题栏、拖拽区、最小化/最大化/关闭桥接，最小化时暂停 WebView2。
 - **零前端依赖**：HTML + CSS + 原生 JS，无框架、无打包步骤；UI 可以直接双击 `WebAssets/index.html` 预览。
@@ -81,14 +81,16 @@
 宿主启动后导航到 `https://app.local/index.html`。这个域名在磁盘上并不存在，所有请求都由
 `MainWindow.OnWebResourceRequested` 拦截：
 
-| 请求路径 | 程序集资源名 |
+| 请求路径 | 来源 |
 | --- | --- |
 | `/index.html` | `StarLaunch.WebAssets.index.html` |
 | `/style.css` | `StarLaunch.WebAssets.style.css` |
 | `/app.js` | `StarLaunch.WebAssets.app.js` |
 | `/theme.js` | `StarLaunch.WebAssets.theme.js` |
 | `/mcu.js` | `StarLaunch.WebAssets.mcu.js` |
-| `/assets/wallpaper.png` | `StarLaunch.WebAssets.assets.wallpaper.png` |
+| `/assets/<file>` | `StarLaunch.WebAssets.assets.<file>` |
+| `/wallpapers/manifest.json` | 宿主实时扫描壁纸目录生成 |
+| `/wallpapers/<file>` | 从 `wallpapers\`（或 LocalAppData 回退目录）读取 |
 
 映射规则：把请求路径的 `/` 换成 `.`，加上 `StarLaunch.WebAssets.` 前缀，再从程序集里取流。
 找不到时返回 404，方便在页面里直接看到缺哪个文件。
@@ -121,8 +123,10 @@
   `app-region: drag` 实现标题栏拖拽；
 - 禁用默认右键菜单、DevTools 和浏览器快捷键（发布版更接近原生应用）；
 - 最小化时调用 `TrySuspendAsync()` 暂停渲染与计时器，恢复时 `Resume()`；
-- 用户数据目录放在 `%LOCALAPPDATA%\StarLaunch\WebView2`，避免安装在 `Program Files`
-  等只读目录时启动失败；
+- 用户数据目录放在 exe 同级的 `WebView2Data`，随程序目录一起移动；
+  如果该目录不可写（例如装在 `Program Files`），自动退回
+  `%LOCALAPPDATA%\StarLaunch\WebView2`；
+- Windows 11 下通过 `DwmSetWindowAttribute` 开启系统圆角，Win10 及更早版本保持默认形状；
 - 资源响应带 `Cache-Control: no-store`，重新编译后不会读到缓存里的旧页面。
 
 ## Material You 配色
@@ -190,24 +194,32 @@ root.style.setProperty('--m3-primary', roles.primary.hex);
 对比度滑杆对应 Scheme 构造函数的第三个参数（`-1` 到 `1`）。此外还可以分别指定
 强调色、选中项、主视觉使用 `primary` / `secondary` / `tertiary` 中的哪一档。
 
-### 从壁纸取色
+### 壁纸库与取色
 
-1. 图片先缩到最长边 1920px 并转 WebP，写入 `localStorage`（避免 4K 原图常驻解码缓存）；
+壁纸放在独立目录：exe 同级的 `wallpapers\`（开发时是项目根目录的 `wallpapers\`），
+该目录不可写时宿主自动退回 `%LOCALAPPDATA%\StarLaunch\wallpapers`。
+设置页的「打开文件夹」可以直接打开实际使用的目录。宿主扫描后通过
+`/wallpapers/manifest.json` 返回清单，网页端：
+
+1. 预加载目标图片再切换，避免换图白闪；
 2. 用 Canvas 读取像素，交给 `MCU.QuantizerCelebi.quantize(pixels, 64)` 量化成 64 色；
 3. 用 `MCU.Score.score(...)` 打分，选出最有代表性的颜色作为新的源色；
-4. 同时按 sRGB 相对亮度估算整张图的明暗，给壁纸遮罩一个下限，亮色壁纸也不会糊字。
+4. 取色结果按图片 URL 缓存，轮播回同一张时不重复计算；
+5. 自动切换支持随机 / 顺序，间隔 1 / 5 / 10 / 30 分钟，切到后台时暂停。
 
-如果 Canvas 因跨源限制拿不到像素，取色会失败并保留当前源色，壁纸本身仍然正常显示。
+图片不再转成 dataURL 写进 `localStorage`。如果直接用浏览器打开 `index.html`，
+没有宿主提供 manifest，壁纸库会显示为空，背景回退到氛围光。
 
 ### 材质规则
 
 从参考主题移植过来的三条硬规则（详见 `WebAssets/README.md`）：
 
 1. **唯一材质源**：玻璃层只用 `--glass` + `--glass-blur`，不写死 `rgba()` 数值；
-2. **玻璃只挂在最外层**：导航、面板、卡片才有 `backdrop-filter`，内部列表行一律透明；
+2. **玻璃只挂在最外层**：导航栏和浮层保留 `backdrop-filter`；大块面板改用更实的半透明底色，
+   避免多个大面积模糊层同时合成导致卡顿；
 3. **浮层必须不透明**：菜单、对话框、Toast 用面层级容器，避免正文从半透明菜单后透出来。
 
-设置里的“性能模式”会一次性关闭模糊、泛光和背景动画，并改用不透明底色。
+壁纸遮罩和全屏噪点层已移除；设置里的“性能模式”会进一步关闭模糊、泛光和背景动画。
 
 ## 目录结构
 
@@ -215,7 +227,8 @@ root.style.setProperty('--m3-primary', roles.primary.hex);
 StarLaunch/
 ├─ App.xaml / App.xaml.cs          # WPF 应用入口
 ├─ MainWindow.xaml                 # 无边框窗口 + 单个 WebView2
-├─ MainWindow.xaml.cs              # 虚拟主机、资源映射、窗口消息、挂起/恢复
+├─ MainWindow.xaml.cs              # 虚拟主机、资源映射、壁纸扫描、窗口消息
+├─ wallpapers/                     # 外部壁纸目录（图片不嵌入程序集）
 ├─ StarLaunch.csproj               # net10.0-windows + WebView2 + 嵌入资源
 ├─ StarLaunch.slnx                 # 解决方案文件
 ├─ LICENSE.txt                     # Apache-2.0
@@ -223,9 +236,9 @@ StarLaunch/
 │  ├─ index.html                   # 页面结构、内联 SVG 图标、四个视图
 │  ├─ style.css                    # 设计令牌、材质层、响应式布局
 │  ├─ app.js                       # 路由、实例、下载队列、启动进度、设置
-│  ├─ theme.js                     # 配色引擎：M3 角色、壁纸取色、CSS 变量
+│  ├─ theme.js                     # 配色引擎：M3 角色、壁纸轮播、取色缓存
 │  ├─ mcu.js                       # Material Color Utilities 经典脚本（勿手改）
-│  ├─ assets/                      # 默认壁纸等静态资源（嵌入 exe）
+│  ├─ assets/                      # 需要嵌入 exe 的静态资源（用户壁纸不在这里）
 │  ├─ preview/                     # README 截图（不嵌入）
 │  ├─ tools/build-mcu.mjs          # 重新生成 mcu.js
 │  └─ README.md                    # 界面层深入说明

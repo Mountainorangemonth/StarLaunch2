@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>预览数据清理</title>
+</head>
+<body style="margin:0;background:#111;color:#ddd;font:14px system-ui">
+<p style="padding:24px">正在清理预览时写入本地的演示数据…</p>
+<script>
+    try {
+        localStorage.removeItem('starlaunch.notice.v1');
+        localStorage.removeItem('starlaunch.launchlog.v1');
+    } catch (e) { /* ignore */ }
+    document.querySelector('p').textContent = '预览演示数据已清理，可以关闭此页。';
+</script>
+</body>
+</html>
