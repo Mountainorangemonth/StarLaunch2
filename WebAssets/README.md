@@ -15,7 +15,7 @@ Minecraft 启动器（WebView2 宿主）的界面层。**Material You 动态配�
 | --- | --- |
 | `index.html` | 页面结构、内联 SVG 图标、四个视图 |
 | `style.css` | 设计令牌、材质层、响应式布局（保留 `.custom-titlebar` 拖拽规则） |
-| `theme.js` | 配色引擎：源色 → M3 色板 → CSS 变量，壁纸取色与遮罩推算 |
+| `theme.js` | 配色引擎：源色 → M3 色板 → CSS 变量，壁纸库轮播与取色缓存 |
 | `app.js` | 路由、时钟、实例切换、下载队列、设置项、启动进度 |
 | `mcu.js` | Material Color Utilities 0.4.0 的经典脚本打包（勿手改，见下） |
 | `tools/build-mcu.mjs` | 重新生成 `mcu.js` |
@@ -50,17 +50,30 @@ Minecraft 启动器（WebView2 宿主）的界面层。**Material You 动态配�
 
 ![设置页](preview/settings-light.png)
 
-## 从壁纸取色
+## 壁纸库与轮播
 
-「设置 → 外观与配色 → 选择图片」，或者直接把图片拖进窗口：
+壁纸不再从网页里选文件或拖放，而是由宿主扫描一个独立文件夹：
 
-1. 图片先缩到最长边 1920px 并转 WebP，再写进 `localStorage`（避免 4K 原图常驻解码缓存）；
+```
+<exe 所在目录>\wallpapers
+```
+
+如果该目录不可写（例如装在 Program Files），宿主自动退回
+`%LOCALAPPDATA%\StarLaunch\wallpapers`。设置页的「打开文件夹」会打开实际使用的目录。
+
+宿主启动后按需扫描该目录，并通过 `/wallpapers/manifest.json` 返回图片清单。
+前端拿到清单后：
+
+1. 先预加载目标图片再切换，避免换图时白闪；
 2. 用 MCU 的 `QuantizerCelebi` 把像素量化成 64 色，再用 `Score` 打分选源色
    —— **不是平均色**，平均色会把鲜艳的图算成一坨灰；
-3. 同时估算壁纸平均亮度，据此推算一个「遮罩下限」。
+3. 取色结果按图片 URL 缓存在内存里，随机轮播回到同一张时不重复计算；
+4. 自动切换支持「随机 / 顺序」，间隔可选 1 / 5 / 10 / 30 分钟；
+   窗口切到后台时暂停，回到前台后按剩余时间继续；
+5. 换图使用双图层交叉淡入（700ms），手动选择和自动轮播走同一条路径。
 
-第 3 步是为了可读性：玻璃是半透明的，壁纸太亮时深色文字会被冲掉。
-用户手动设的遮罩低于这个下限时取下限，调高则尊重用户。
+图片不再转成 dataURL 写进 `localStorage`，避免大图常驻内存和反复序列化。
+设置页的「打开文件夹」「重新扫描」分别对应宿主消息和重新拉取 manifest。
 
 ![壁纸取色](preview/wallpaper-colors.png)
 
@@ -68,11 +81,12 @@ Minecraft 启动器（WebView2 宿主）的界面层。**Material You 动态配�
 
 从参考主题移植过来的三条硬规则，缺一条观感就会崩：
 
-1. **唯一材质源**：所有玻璃层只用 `--glass` + `--glass-blur`，
-   任何地方不写死 `rgba()` 数值。
-2. **玻璃只挂在最外层**：导航、面板、卡片这些承载层才有 `backdrop-filter`；
-   它内部的列表行、mini 卡片一律 `transparent`。
-   否则 alpha 叠加，同一材质在嵌套处深浅不一（「玻璃叠玻璃」）。
+1. **唯一材质源**：所有玻璃层都从 `--glass-rgb` / `--glass-a` 派生
+   （`--glass`、`--glass-strong`、`--glass-weak`），不写死 `rgba()` 数值；
+   因此「材质不透明度」滑杆会同时作用于导航、面板、设置块和列表卡片。
+2. **模糊只挂在最外层**：导航栏和浮层保留 `backdrop-filter`；
+   大块面板改用半透明底色，减少多个大面积图层同时合成导致的卡顿。
+   面板内部的列表行、mini 卡片一律 `transparent`，避免「玻璃叠玻璃」。
 3. **中间容器全部打透**，让壁纸和氛围光透出来。
 
 例外是**浮层**（菜单、弹窗、toast）：它们必须不透明。
@@ -91,14 +105,14 @@ window.chrome.webview.postMessage({ type: 'window-control', action })  // 2. Web
 new CustomEvent('starlaunch:window-control', { detail: { action } })   // 3. DOM 事件
 ```
 
-`MainWindow.xaml.cs` 已开启 `IsNonClientRegionSupportEnabled` 并监听
-`webview-control` 消息，网页端不用改就能用。
+`MainWindow.xaml.cs` 已开启 `IsNonClientRegionSupportEnabled`，监听 `window-control`
+消息，并额外处理 `open-wallpapers`（打开壁纸目录）。网页端不用改就能用。
 
 ## 关于 mcu.js
 
 `mcu.js` 不是手写的，是 `tools/build-mcu.mjs` 从 jsDelivr 的 Rollup 产物改写的：
 
-**为什么不用 `<script type="module">`**：WebView2 多数情况下以 `file://` 加载页面，
+**为什么不用 `<script type="module">`**：直接用浏览器打开 `index.html` 时是 `file://`，
 ESM 会被 CORS 拦下来，界面直接白屏。所以把它转成经典脚本，
 挂在 `window.MaterialColorUtilities` 上。
 
@@ -113,18 +127,27 @@ node tools/build-mcu.mjs
 
 ## 性能
 
-- 只有承载层带 `backdrop-filter`，按钮、chip、列表行这些碎元素不带；
+- 大块面板不再实时 `backdrop-filter`，改用更实的半透明底色；
+  只有导航栏和最外层浮层保留模糊，减少同时合成的大面积图层；
+- 移除了全屏遮罩层和噪点层，切换页面时不再整屏重绘；
+- 滑杆输入合并到 `requestAnimationFrame`，且玻璃 / 模糊 / 泛光只更新材质变量，
+  不重算 56 个 M3 颜色角色；松手时才写一次 `localStorage`；
+- 色板条、源色圆点、变体 chip 只在源色 / 变体 / 明暗 / 角色变化时重建；
+- 壁纸取色结果按 URL 缓存，轮播前预加载下一张，换图用双图层交叉淡入；
+- 切换页面时主要区块按 DOM 顺序以 40ms 递增延迟浮入，单个动画 460ms；
 - 「设置 → 性能模式」一次性关掉模糊、泛光和背景动画，并改用不透明底色；
-- 窗口切到后台时 `.is-idle` 暂停所有装饰动画；
-- 设置项全部走 `localStorage`，键名前缀 `starlaunch.`；
+- 窗口切到后台时 `.is-idle` 暂停装饰动画，壁纸轮播也暂停；
 - 遵循 `prefers-reduced-motion`。
 
 ## 数据位置
 
 - `app.js` 的 `INSTANCES`：主页实例浮层、版本列表、详情面板的唯一数据源；
 - `app.js` 的 `DOWNLOADS`：下载中心全部分类；
-- 外观设置 `starlaunch.theme.v3`，界面偏好 `starlaunch.ui.v3`，
-  启动参数 `starlaunch.launch.v3`，壁纸 `starlaunch.wallpaper.v3`。
+- 外观设置 `starlaunch.theme.v4`，界面偏好 `starlaunch.ui.v3`，
+  启动参数 `starlaunch.launch.v3`；
+- 壁纸只在宿主的 `wallpapers` 目录中（exe 同级，不可写时退回
+  `%LOCALAPPDATA%\StarLaunch\wallpapers`），网页端不保存图片数据，
+  只保存当前图片名和轮播设置。
 
 ## 预览
 
@@ -141,7 +164,7 @@ node tools/build-mcu.mjs
 
 ## 已知取舍
 
-- 壁纸取色依赖 Canvas `getImageData`。极少数 WebView2 配置把 `file://`
-  判成跨源，此时取色会失败并**静默保留当前源色**（控制台有一条 warn），
-  壁纸本身仍然正常显示。
+- 壁纸取色依赖 Canvas `getImageData`。宿主用 `https://app.local` 提供图片，
+  正常情况同源可用；如果直接用浏览器打开 `index.html`，读不到 manifest，
+  壁纸库会显示为空，背景回退到氛围光。
 - 实例列表、下载数据目前是 `app.js` 里的静态数据，接宿主时替换成 IPC 拉取即可。

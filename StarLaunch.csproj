@@ -33,8 +33,13 @@
 			<LogicalName>StarLaunch.WebAssets.theme.js</LogicalName>
 		</EmbeddedResource>
 
-		<!-- 壁纸等静态资源：把图片放进 WebAssets\assets 后会自动嵌入 -->
+		<!-- 其他静态资源：编进程序集；用户壁纸由宿主扫描 wallpapers 文件夹，
+		     exe 同级目录不可写时退回 %LOCALAPPDATA%\StarLaunch\wallpapers -->
 		<EmbeddedResource Include="WebAssets\assets\**\*" />
+
+		<!-- 开发时放进 wallpapers 的图片会复制到输出目录，方便直接看效果。
+		     用 Update 而不是 Include，避免和 SDK 默认 None 项重复。 -->
+		<None Update="wallpapers\**\*" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
   <ItemGroup>

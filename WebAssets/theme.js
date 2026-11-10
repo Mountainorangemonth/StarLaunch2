@@ -4,24 +4,33 @@
    整套配色由 Material Color Utilities（Google 的 Material You 色彩库）
    在本地实时计算：源色 → HCT → M3 Scheme → 56 个颜色角色 → CSS 变量。
 
+   壁纸由宿主扫描外部文件夹后通过 /wallpapers/manifest.json 提供，
+   前端只负责随机 / 顺序轮播、预加载和取色；不再把图片写进 localStorage。
+
    为什么不用 <script type="module">：
    WebView2 多数情况下以 file:// 加载页面，ESM 会被 CORS 拦下，界面直接白屏。
    mcu.js 是 tools/build-mcu.mjs 生成的经典脚本，挂在 window.MaterialColorUtilities。
 
    对外接口（app.js 会用到）：
-       StarTheme.ready            Promise，首次配色完成
-       StarTheme.state            当前设置（可直接读）
-       StarTheme.update(patch)    改设置并立即重算
-       StarTheme.setWallpaper(file|url|null)
-       StarTheme.onChange(fn)     配色变化回调
-       StarTheme.randomSeed()     随机换一个源色
+       StarTheme.ready                 Promise，首次配色完成
+       StarTheme.state                 当前设置（可直接读）
+       StarTheme.library               宿主扫描到的壁纸列表
+       StarTheme.update(patch)         改设置并立即重算
+       StarTheme.persist()             立即写入 localStorage
+       StarTheme.reloadWallpapers()    重新读取 /wallpapers/manifest.json
+       StarTheme.selectWallpaper(url)  切换到指定壁纸
+       StarTheme.nextWallpaper()       按当前模式换下一张
+       StarTheme.resampleWallpaper()   重新从当前壁纸取色
+       StarTheme.onChange(fn)          配色变化回调
    ===================================================================== */
 (function (global) {
     'use strict';
 
     const MCU = global.MaterialColorUtilities;
-    const STORE_KEY = 'starlaunch.theme.v3';
-    const WALLPAPER_KEY = 'starlaunch.wallpaper.v3';
+    const STORE_KEY = 'starlaunch.theme.v4';
+    const LEGACY_STORE_KEY = 'starlaunch.theme.v3';
+    const LEGACY_WALLPAPER_KEY = 'starlaunch.wallpaper.v3';
+    const MANIFEST_URL = '/wallpapers/manifest.json';
 
     /* -----------------------------------------------------------------
        默认值
@@ -34,12 +43,15 @@
         roles: { accent: 'primary', selected: 'primary', hero: 'primary' },
         glass: 55,
         blur: 18,
-        scrim: 24,
         glow: 18,
         performance: false,
-        wallpaper: null,      // dataURL 或普通路径
+        wallpaper: null,
         wallpaperName: '',
-        wallpaperLum: null    // 壁纸平均亮度（0–1），用来推算遮罩下限
+        wallpaperFolder: '',
+        wallpaperMode: 'random',   // random | sequence
+        wallpaperInterval: 5,      // 分钟
+        wallpaperRotate: true,
+        libraryError: ''
     };
 
     const VARIANTS = [
@@ -84,16 +96,23 @@
     const notify = () => listeners.forEach((fn) => { try { fn(state); } catch (err) { console.error(err); } });
 
     const state = Object.assign({}, DEFAULT_STATE, { roles: Object.assign({}, DEFAULT_STATE.roles) });
+    let library = [];
     let resolvedMode = 'light';
     let currentTokens = null;
     let wallpaperToken = 0;
+    let lastSwitchAt = 0;
+    let rotateTimer = 0;
+    let activeWallpaperLayer = 0;
+    let paintedWallpaperUrl = null;
+
+    const seedCache = new Map();
 
     /* -----------------------------------------------------------------
        持久化
        ----------------------------------------------------------------- */
     function load() {
         try {
-            const raw = localStorage.getItem(STORE_KEY);
+            const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(LEGACY_STORE_KEY);
             if (raw) {
                 const saved = JSON.parse(raw);
                 if (saved && typeof saved === 'object') {
@@ -108,33 +127,53 @@
                             }
                         });
                     }
-                    ['glass', 'blur', 'scrim', 'glow'].forEach((key) => {
+                    ['glass', 'blur', 'glow'].forEach((key) => {
                         if (Number.isFinite(saved[key])) state[key] = saved[key];
                     });
                     state.performance = saved.performance === true;
+
+                    if (typeof saved.wallpaper === 'string' && saved.wallpaper.indexOf('/wallpapers/') === 0) {
+                        state.wallpaper = saved.wallpaper;
+                    }
+                    if (typeof saved.wallpaperName === 'string') state.wallpaperName = saved.wallpaperName;
+                    if (['random', 'sequence'].indexOf(saved.wallpaperMode) !== -1) state.wallpaperMode = saved.wallpaperMode;
+                    if ([1, 5, 10, 30].indexOf(Number(saved.wallpaperInterval)) !== -1) state.wallpaperInterval = Number(saved.wallpaperInterval);
+                    state.wallpaperRotate = saved.wallpaperRotate !== false;
                 }
-            }
-            const wp = localStorage.getItem(WALLPAPER_KEY);
-            if (wp) {
-                state.wallpaper = wp;
-                state.wallpaperName = localStorage.getItem(WALLPAPER_KEY + ':name') || '自定义壁纸';
             }
         } catch (err) {
             console.warn('读取主题设置失败，使用默认值', err);
         }
         state.glass = clamp(state.glass, 30, 95);
         state.blur = clamp(state.blur, 0, 40);
-        state.scrim = clamp(state.scrim, 0, 80);
         state.glow = clamp(state.glow, 0, 60);
+
+        // 旧版把整张壁纸转成 dataURL 存进 localStorage，体积很大；升级后直接丢掉。
+        try {
+            localStorage.removeItem(LEGACY_WALLPAPER_KEY);
+            localStorage.removeItem(LEGACY_WALLPAPER_KEY + ':name');
+        } catch (err) { /* 忽略 */ }
     }
 
     function save() {
         try {
             localStorage.setItem(STORE_KEY, JSON.stringify({
-                seed: state.seed, variant: state.variant, mode: state.mode, contrast: state.contrast,
-                roles: state.roles, glass: state.glass, blur: state.blur, scrim: state.scrim,
-                glow: state.glow, performance: state.performance
+                seed: state.seed,
+                variant: state.variant,
+                mode: state.mode,
+                contrast: state.contrast,
+                roles: state.roles,
+                glass: state.glass,
+                blur: state.blur,
+                glow: state.glow,
+                performance: state.performance,
+                wallpaper: state.wallpaper,
+                wallpaperName: state.wallpaperName,
+                wallpaperMode: state.wallpaperMode,
+                wallpaperInterval: state.wallpaperInterval,
+                wallpaperRotate: state.wallpaperRotate
             }));
+            localStorage.removeItem(LEGACY_STORE_KEY);
         } catch (err) {
             console.warn('保存主题设置失败', err);
         }
@@ -216,6 +255,26 @@
     /* -----------------------------------------------------------------
        写入 CSS 变量
        ----------------------------------------------------------------- */
+    function applyMaterialVars(isDark, roles) {
+        const root = document.documentElement;
+        const set = (name, value) => root.style.setProperty(name, value);
+        const rgb = (key, fallback) => (roles[key] ? roles[key].rgb.join(', ') : fallback);
+
+        // 材质：只允许一个来源。玻璃底色 = surfaceContainer + 不透明度
+        const glassAlpha = state.performance ? 1 : state.glass / 100;
+        const glassBase = isDark ? 'surfaceContainerHigh' : 'surfaceContainerLow';
+        set('--glass-rgb', rgb(glassBase, isDark ? '40, 37, 43' : '242, 238, 248'));
+        set('--glass-a', String(glassAlpha));
+        set('--glass-blur', state.performance ? '0px' : state.blur + 'px');
+        set('--glass', 'rgba(var(--glass-rgb), var(--glass-a))');
+        set('--glass-strong', 'rgba(var(--glass-rgb), calc(var(--glass-a) + 0.22))');
+        set('--glass-weak', 'rgba(var(--glass-rgb), calc(var(--glass-a) - 0.16))');
+        set('--specular', isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.72)');
+        set('--glow', String(state.glow / 100));
+        set('--shadow-rgb', isDark ? '0, 0, 0' : '24, 22, 40');
+        root.dataset.performance = state.performance ? 'on' : 'off';
+    }
+
     function applyTokens() {
         const root = document.documentElement;
         const isDark = resolvedMode === 'dark';
@@ -252,28 +311,7 @@
         set('--line', 'rgba(' + rgb('outlineVariant', isDark ? '73, 69, 79' : '202, 197, 208') + ', 0.55)');
         set('--line-soft', 'rgba(' + rgb('outlineVariant', isDark ? '73, 69, 79' : '202, 197, 208') + ', 0.28)');
 
-        // 材质：只允许一个来源。玻璃底色 = surfaceContainer + 不透明度
-        const glassAlpha = state.performance ? 1 : state.glass / 100;
-        const glassBase = isDark ? 'surfaceContainerHigh' : 'surfaceContainerLow';
-        set('--glass-rgb', rgb(glassBase, isDark ? '40, 37, 43' : '242, 238, 248'));
-        set('--glass-a', String(state.performance ? 1 : glassAlpha));
-        set('--glass-blur', state.performance ? '0px' : state.blur + 'px');
-        set('--glass', 'rgba(var(--glass-rgb), var(--glass-a))');
-        set('--glass-strong', 'rgba(var(--glass-rgb), calc(var(--glass-a) + 0.22))');
-        set('--glass-weak', 'rgba(var(--glass-rgb), calc(var(--glass-a) - 0.16))');
-        set('--specular', isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.72)');
-        set('--hairline', isDark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(255, 255, 255, 0.5)');
-
-        /*
-         * 遮罩取「用户设置」和「可读性下限」中较大的那个。
-         * 壁纸太亮时玻璃压不住深色文字，这里自动补足，用户不需要自己去调。
-         */
-        const autoScrim = autoScrimFor(state.wallpaperLum);
-        const effectiveScrim = Math.max(state.scrim / 100, autoScrim);
-        set('--scrim-a', String(effectiveScrim));
-        root.dataset.autoScrim = autoScrim > state.scrim / 100 ? 'on' : 'off';
-        set('--glow', String(state.glow / 100));
-        set('--shadow-rgb', isDark ? '0, 0, 0' : '24, 22, 40');
+        applyMaterialVars(isDark, roles);
 
         // 背景氛围光：用源色的 primary / tertiary 色相铺开
         const primaryTone = MCU.hexFromArgb(scheme.primaryPalette.tone(isDark ? 30 : 88));
@@ -285,7 +323,6 @@
 
         root.dataset.mode = resolvedMode;
         root.dataset.variant = state.variant;
-        root.dataset.performance = state.performance ? 'on' : 'off';
         root.style.colorScheme = resolvedMode;
 
         currentTokens = {
@@ -296,7 +333,7 @@
                 tertiary: toneRamp(scheme.tertiaryPalette),
                 neutral: toneRamp(scheme.neutralPalette)
             },
-            source: MCU.hexFromArgb(MCU.Hct.fromInt(MCU.argbFromHex(state.seed)).toInt())
+            source: MCU.hexFromArgb(sourceHct.toInt())
         };
 
         return currentTokens;
@@ -308,193 +345,265 @@
     }
 
     /* -----------------------------------------------------------------
-       壁纸：压缩 → 存 localStorage → 取色
+       壁纸：宿主扫描文件夹 → manifest → 预加载 → 取色
        ----------------------------------------------------------------- */
-    function compressImage(file) {
+    function preload(url) {
         return new Promise((resolve, reject) => {
-            const url = URL.createObjectURL(file);
             const img = new Image();
-            img.onload = () => {
-                const maxSide = 1920;
-                const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
-                const w = Math.max(1, Math.round(img.naturalWidth * scale));
-                const h = Math.max(1, Math.round(img.naturalHeight * scale));
-                const canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d', { alpha: false });
-                if (!ctx) { URL.revokeObjectURL(url); reject(new Error('当前环境不支持 Canvas')); return; }
-                ctx.drawImage(img, 0, 0, w, h);
-                let out = '';
-                try {
-                    out = canvas.toDataURL('image/webp', 0.86);
-                } catch (err) {
-                    out = '';
-                }
-                if (!out || out.indexOf('data:image') !== 0) {
-                    try { out = canvas.toDataURL('image/jpeg', 0.86); } catch (err) { out = ''; }
-                }
-                canvas.width = 0;
-                canvas.height = 0;
-                URL.revokeObjectURL(url);
-                if (!out) { reject(new Error('图片编码失败')); return; }
-                resolve(out);
-            };
-            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片无法解码')); };
+            img.decoding = 'async';
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('壁纸加载失败'));
             img.src = url;
         });
     }
 
     /**
-     * 从图片取源色 + 算平均亮度。
-     * 用 MCU 自己的 quantizer + score（和琉璃主题同一套流程），
-     * 而不是平均色 —— 平均色会把鲜艳的图算成灰。
-     * 亮度用来兜底可读性：壁纸太亮时玻璃上的深色文字会糊掉。
+     * 从图片取源色。用 MCU 自己的 quantizer + score，
+     * 结果按图片 URL 缓存，轮播回同一张时不再重复计算。
      */
-    function sampleWallpaper(img) {
-        const side = 96;
+    async function seedFor(url) {
+        if (seedCache.has(url)) return seedCache.get(url);
+        let img;
+        try {
+            img = await preload(url);
+        } catch (err) {
+            seedCache.set(url, null);
+            return null;
+        }
+        const side = 64;
         const canvas = document.createElement('canvas');
         canvas.width = side;
         canvas.height = side;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return null;
+        let seed = null;
         try {
             ctx.drawImage(img, 0, 0, side, side);
             const data = ctx.getImageData(0, 0, side, side).data;
             const pixels = [];
-            let lr = 0, lg = 0, lb = 0, count = 0;
             for (let i = 0; i < data.length; i += 4) {
                 if (data[i + 3] < 255) continue;
                 pixels.push(MCU.argbFromRgb(data[i], data[i + 1], data[i + 2]));
-                // sRGB 相对亮度的线性化权重，用来估算整张图的明暗
-                lr += Math.pow(data[i] / 255, 2.2);
-                lg += Math.pow(data[i + 1] / 255, 2.2);
-                lb += Math.pow(data[i + 2] / 255, 2.2);
-                count += 1;
             }
-            if (!count || !pixels.length) return null;
-            const lum = 0.2126 * (lr / count) + 0.7152 * (lg / count) + 0.0722 * (lb / count);
-
-            let seed = null;
-            const quantized = MCU.QuantizerCelebi.quantize(pixels, 64);
-            if (quantized && quantized.size) {
-                const seedArgb = MCU.MaterialDynamicColors.primaryPaletteKeyColor.getArgb(
-                    new MCU.SchemeTonalSpot(MCU.Hct.fromInt(MCU.argbFromHex(DEFAULT_STATE.seed)), false, 0)
-                );
-                const scored = MCU.Score.score(quantized, seedArgb);
-                if (scored && scored.length) seed = MCU.hexFromArgb(scored[0]);
+            if (pixels.length) {
+                const quantized = MCU.QuantizerCelebi.quantize(pixels, 64);
+                if (quantized && quantized.size) {
+                    const seedArgb = MCU.MaterialDynamicColors.primaryPaletteKeyColor.getArgb(
+                        new MCU.SchemeTonalSpot(MCU.Hct.fromInt(MCU.argbFromHex(DEFAULT_STATE.seed)), false, 0)
+                    );
+                    const scored = MCU.Score.score(quantized, seedArgb);
+                    if (scored && scored.length) seed = MCU.hexFromArgb(scored[0]);
+                }
             }
-            return { seed: seed, lum: Math.min(1, Math.max(0, lum)) };
         } catch (err) {
-            // file:// 下画布可能被判定为「跨源污染」，此时安静退回默认源色
+            // 极少数 WebView2 配置把画布判成跨源污染，安静退回当前源色
             console.warn('壁纸取色失败，保留当前源色', err);
-            return null;
         } finally {
             canvas.width = 0;
             canvas.height = 0;
         }
-    }
-
-    /**
-     * 自动遮罩：保证玻璃层背后有一个可读的基底。
-     *
-     * 玻璃是半透明的，壁纸越亮，压在玻璃下的浅色底越会把深色文字冲掉；
-     * 暗色模式下反过来，太暗的壁纸会让亮字发灰。
-     * 这里按壁纸平均亮度算一个「至少需要多少遮罩」，用户手动调的值
-     * 低于它时取它（用户调高则尊重用户）。
-     */
-    function autoScrimFor(lum) {
-        if (lum === null || lum === undefined) return 0;
-        const dark = resolvedMode === 'dark';
-        if (dark) {
-            // 目标：基底暗到亮字够清楚
-            const target = 0.14;
-            if (lum <= target) return 0;
-            return clamp((lum - target) / Math.max(lum, 0.0001), 0, 0.78);
-        }
-        // 目标：基底亮到深字够清楚
-        const target = 0.74;
-        if (lum >= target) return 0;
-        return clamp((target - lum) / Math.max(1 - lum, 0.0001), 0, 0.72);
+        seedCache.set(url, seed);
+        return seed;
     }
 
     function paintWallpaper() {
-        const layer = document.getElementById('wallpaperLayer');
         const backdrop = document.getElementById('backdrop');
-        if (!layer) return;
-        if (state.wallpaper) {
-            layer.style.backgroundImage = 'url("' + state.wallpaper.replace(/"/g, '\\"') + '")';
-            if (backdrop) backdrop.classList.add('has-photo');
-        } else {
-            layer.style.backgroundImage = 'none';
+        const layers = [
+            document.getElementById('wallpaperLayer'),
+            document.getElementById('wallpaperLayerNext')
+        ].filter(Boolean);
+
+        if (!state.wallpaper) {
+            layers.forEach((layer) => {
+                layer.classList.remove('is-active');
+                layer.style.backgroundImage = 'none';
+            });
             if (backdrop) backdrop.classList.remove('has-photo');
+            activeWallpaperLayer = 0;
+            paintedWallpaperUrl = null;
+        } else {
+            if (backdrop) backdrop.classList.add('has-photo');
+            if (paintedWallpaperUrl !== state.wallpaper) {
+                // 双图层交叉淡入：旧图保持 is-active，新图淡入后再撤掉旧图。
+                const nextIndex = layers.length > 1 ? 1 - activeWallpaperLayer : 0;
+                const next = layers[nextIndex];
+                if (next) {
+                    next.style.backgroundImage = 'url("' + state.wallpaper.replace(/"/g, '\\"') + '")';
+                    void next.offsetWidth;
+                    next.classList.add('is-active');
+                    layers.forEach((layer, index) => {
+                        if (index !== nextIndex) layer.classList.remove('is-active');
+                    });
+                }
+                activeWallpaperLayer = nextIndex;
+                paintedWallpaperUrl = state.wallpaper;
+            }
         }
+
         const preview = document.getElementById('bgPreview');
-        if (preview) preview.style.backgroundImage = state.wallpaper ? layer.style.backgroundImage : '';
+        if (preview) {
+            preview.style.display = state.wallpaper ? '' : 'none';
+            preview.style.backgroundImage = state.wallpaper ? 'url("' + state.wallpaper.replace(/"/g, '\\"') + '")' : '';
+        }
+
+        const folder = document.getElementById('wallpaperFolder');
+        if (folder) {
+            folder.textContent = state.wallpaperFolder || '未读取到壁纸文件夹';
+        }
         const note = document.getElementById('wallpaperNote');
         if (note) {
-            note.textContent = state.wallpaper
-                ? '当前：' + (state.wallpaperName || '自定义壁纸') + '（取色与背景共用这张图）'
-                : '未设置壁纸时使用由源色生成的氛围光。';
+            if (state.wallpaper) {
+                note.textContent = '当前：' + (state.wallpaperName || '壁纸') + ' · 共 ' + library.length + ' 张';
+            } else if (library.length) {
+                note.textContent = '壁纸库共 ' + library.length + ' 张，选择一张作为背景。';
+            } else if (state.libraryError) {
+                note.textContent = '';
+            } else {
+                note.textContent = '壁纸文件夹为空。放入图片后点“重新扫描”。';
+            }
         }
     }
 
-    async function adoptWallpaper(dataUrl, name, options) {
+    async function applyWallpaper(item, options) {
         const opts = options || {};
         const token = ++wallpaperToken;
-        state.wallpaper = dataUrl;
-        state.wallpaperName = name || '自定义壁纸';
-        paintWallpaper();
         try {
-            localStorage.setItem(WALLPAPER_KEY, dataUrl);
-            localStorage.setItem(WALLPAPER_KEY + ':name', state.wallpaperName);
+            await preload(item.url);
         } catch (err) {
-            console.warn('壁纸过大，未能写入本地存储（本次运行仍生效）', err);
-            if (opts.onQuota) opts.onQuota(err);
+            return false;
         }
+        if (token !== wallpaperToken) return false;
+        state.wallpaper = item.url;
+        state.wallpaperName = item.name || '';
+        lastSwitchAt = Date.now();
+        paintWallpaper();
+        if (opts.persist !== false) save();
+        notify();
+
         if (opts.sample !== false) {
-            const img = new Image();
-            img.onload = () => {
-                if (token !== wallpaperToken) return;
-                const sample = sampleWallpaper(img);
-                if (!sample) return;
-                if (sample.seed) state.seed = sample.seed;
-                state.wallpaperLum = sample.lum;
+            const seed = await seedFor(item.url);
+            if (token !== wallpaperToken) return true;
+            if (seed && seed !== state.seed) {
+                state.seed = seed;
                 render();
                 notify();
-            };
-            img.src = dataUrl;
+                save();
+            }
         }
         return true;
     }
 
-    /**
-     * 设置壁纸。传 File 会自动压缩；传字符串则当作已有图片地址。
-     * 传 null 清除壁纸。
-     */
-    async function setWallpaper(input, options) {
-        if (input === null || input === undefined) {
+    function scheduleRotation() {
+        if (rotateTimer) {
+            global.clearInterval(rotateTimer);
+            rotateTimer = 0;
+        }
+        if (!state.wallpaperRotate || library.length < 2) return;
+        lastSwitchAt = Date.now();
+        rotateTimer = global.setInterval(() => {
+            if (global.document.hidden) return;
+            if (Date.now() - lastSwitchAt < state.wallpaperInterval * 60000) return;
+            nextWallpaper();
+        }, 15000);
+    }
+
+    async function setLibrary(items, folder) {
+        const previous = state.wallpaper;
+        library = (Array.isArray(items) ? items : []).filter((item) =>
+            item && typeof item.url === 'string' && item.url.indexOf('/wallpapers/') === 0
+        ).map((item) => ({
+            url: item.url,
+            name: typeof item.name === 'string' && item.name ? item.name : item.url.split('/').pop()
+        }));
+        state.wallpaperFolder = folder || '';
+        state.libraryError = '';
+
+        if (!library.length) {
             state.wallpaper = null;
             state.wallpaperName = '';
-            state.wallpaperLum = null;
             paintWallpaper();
-            render();
+            scheduleRotation();
+            save();
             notify();
-            try {
-                localStorage.removeItem(WALLPAPER_KEY);
-                localStorage.removeItem(WALLPAPER_KEY + ':name');
-            } catch (err) { /* 忽略 */ }
+            return;
+        }
+
+        const current = library.find((item) => item.url === previous);
+        if (current) {
+            state.wallpaperName = current.name;
+            paintWallpaper();
+            if (!seedCache.has(current.url)) {
+                seedFor(current.url).then((seed) => {
+                    if (state.wallpaper === current.url && seed) {
+                        state.seed = seed;
+                        render();
+                        notify();
+                        save();
+                    }
+                });
+            }
+            notify();
+        } else {
+            const pick = library.length === 1 || state.wallpaperMode === 'sequence'
+                ? library[0]
+                : library[Math.floor(Math.random() * library.length)];
+            await applyWallpaper(pick, { persist: true });
+        }
+        scheduleRotation();
+    }
+
+    async function reloadWallpapers() {
+        try {
+            const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            await setLibrary(data.items || [], data.folder || '');
             return true;
+        } catch (err) {
+            library = [];
+            state.wallpaper = null;
+            state.wallpaperName = '';
+            state.wallpaperFolder = '';
+            state.libraryError = '需要通过宿主运行才能读取壁纸文件夹';
+            paintWallpaper();
+            scheduleRotation();
+            save();
+            notify();
+            return false;
         }
-        if (typeof input === 'string') {
-            return adoptWallpaper(input, (options && options.name) || '自定义壁纸', options);
+    }
+
+    async function selectWallpaper(url) {
+        const item = library.find((entry) => entry.url === url);
+        if (!item) return false;
+        const ok = await applyWallpaper(item, { persist: true });
+        if (ok) scheduleRotation();
+        return ok;
+    }
+
+    async function nextWallpaper() {
+        if (library.length < 2) return false;
+        const index = library.findIndex((item) => item.url === state.wallpaper);
+        let next;
+        if (state.wallpaperMode === 'random') {
+            const pool = library.filter((item) => item.url !== state.wallpaper);
+            next = pool[Math.floor(Math.random() * pool.length)] || library[0];
+        } else {
+            next = library[(index + 1) % library.length];
         }
-        const file = input;
-        if (!file.type || file.type.indexOf('image/') !== 0) {
-            throw new Error('请选择 PNG / JPG / WebP 图片');
-        }
-        const dataUrl = await compressImage(file);
-        return adoptWallpaper(dataUrl, file.name, options);
+        return applyWallpaper(next, { persist: true });
+    }
+
+    async function resampleWallpaper() {
+        if (!state.wallpaper) return false;
+        seedCache.delete(state.wallpaper);
+        const seed = await seedFor(state.wallpaper);
+        if (!seed) return false;
+        state.seed = seed;
+        render();
+        notify();
+        save();
+        return true;
     }
 
     /* -----------------------------------------------------------------
@@ -510,30 +619,76 @@
     function update(patch, options) {
         const opts = options || {};
         const next = patch || {};
-        if (typeof next.seed === 'string' && /^#[0-9a-f]{6}$/i.test(next.seed)) state.seed = next.seed.toLowerCase();
-        if (next.variant && VARIANTS.some((v) => v.id === next.variant)) state.variant = next.variant;
-        if (next.mode && ['auto', 'light', 'dark'].indexOf(next.mode) !== -1) state.mode = next.mode;
-        if (Number.isFinite(next.contrast)) state.contrast = clamp(next.contrast, -1, 1);
+        let colorChanged = false;
+        let materialChanged = false;
+        let wallpaperPrefsChanged = false;
+
+        if (typeof next.seed === 'string' && /^#[0-9a-f]{6}$/i.test(next.seed)) {
+            state.seed = next.seed.toLowerCase();
+            colorChanged = true;
+        }
+        if (next.variant && VARIANTS.some((v) => v.id === next.variant)) {
+            state.variant = next.variant;
+            colorChanged = true;
+        }
+        if (next.mode && ['auto', 'light', 'dark'].indexOf(next.mode) !== -1) {
+            state.mode = next.mode;
+            colorChanged = true;
+        }
+        if (Number.isFinite(next.contrast)) {
+            state.contrast = clamp(next.contrast, -1, 1);
+            colorChanged = true;
+        }
         if (next.roles) {
             ['accent', 'selected', 'hero'].forEach((slot) => {
-                if (['primary', 'secondary', 'tertiary'].indexOf(next.roles[slot]) !== -1) state.roles[slot] = next.roles[slot];
+                if (['primary', 'secondary', 'tertiary'].indexOf(next.roles[slot]) !== -1) {
+                    state.roles[slot] = next.roles[slot];
+                    colorChanged = true;
+                }
             });
         }
-        ['glass', 'blur', 'scrim', 'glow'].forEach((key) => {
-            if (Number.isFinite(next[key])) state[key] = Number(next[key]);
+        ['glass', 'blur', 'glow'].forEach((key) => {
+            if (Number.isFinite(next[key])) {
+                state[key] = Number(next[key]);
+                materialChanged = true;
+            }
         });
-        if (typeof next.performance === 'boolean') state.performance = next.performance;
+        if (typeof next.performance === 'boolean') {
+            state.performance = next.performance;
+            materialChanged = true;
+        }
+        if (next.wallpaperMode && ['random', 'sequence'].indexOf(next.wallpaperMode) !== -1) {
+            state.wallpaperMode = next.wallpaperMode;
+            wallpaperPrefsChanged = true;
+        }
+        if (Number.isFinite(next.wallpaperInterval) && [1, 5, 10, 30].indexOf(Number(next.wallpaperInterval)) !== -1) {
+            state.wallpaperInterval = Number(next.wallpaperInterval);
+            wallpaperPrefsChanged = true;
+        }
+        if (typeof next.wallpaperRotate === 'boolean') {
+            state.wallpaperRotate = next.wallpaperRotate;
+            wallpaperPrefsChanged = true;
+        }
 
-        render();
+        // 只动玻璃/模糊/泛光时复用已有色板，避免每一帧重算 56 个 M3 角色。
+        if (colorChanged) {
+            render();
+        } else if (materialChanged) {
+            if (currentTokens) applyMaterialVars(currentTokens.isDark, currentTokens.roles);
+            else render();
+        }
+        if (wallpaperPrefsChanged) {
+            scheduleRotation();
+            if (state.wallpaperRotate && library.length > 1) lastSwitchAt = Date.now();
+        }
+
         if (opts.persist !== false) save();
         if (opts.silent !== true) notify();
         return state;
     }
 
-    function randomSeed() {
-        const palette = SEEDS;
-        const pool = palette.map((s) => s.value).filter((v) => v !== state.seed);
-        return pool[Math.floor(Math.random() * pool.length)] || '#7c6ce6';
+    function persist() {
+        save();
     }
 
     function bindSystemMode() {
@@ -564,19 +719,8 @@
         render();
         paintWallpaper();
         bindSystemMode();
-        // 上次保存过壁纸：只重算亮度以恢复遮罩下限，不覆盖用户后来挑的源色
-        if (state.wallpaper) {
-            const img = new Image();
-            img.onload = () => {
-                const sample = sampleWallpaper(img);
-                if (!sample) return;
-                state.wallpaperLum = sample.lum;
-                render();
-                notify();
-            };
-            img.src = state.wallpaper;
-        }
         readyResolve(currentTokens);
+        reloadWallpapers();
     }
 
     const api = {
@@ -586,8 +730,11 @@
         seeds: SEEDS,
         update,
         render,
-        setWallpaper,
-        randomSeed,
+        persist,
+        reloadWallpapers,
+        selectWallpaper,
+        nextWallpaper,
+        resampleWallpaper,
         onChange(fn) {
             if (typeof fn === 'function') listeners.push(fn);
             return () => {
@@ -595,6 +742,7 @@
                 if (index !== -1) listeners.splice(index, 1);
             };
         },
+        get library() { return library; },
         get tokens() { return currentTokens; },
         get mode() { return resolvedMode; }
     };
