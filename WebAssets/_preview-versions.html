@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>预览：下载中心</title>
+<style>
+    html, body { margin: 0; background: #0f0f13; overflow: hidden; }
+    #wrap { width: 1320px; height: 2400px; transform: scale(0.34); transform-origin: 0 0; }
+    iframe { width: 1320px; height: 2400px; border: 0; display: block; }
+</style>
+</head>
+<body>
+<div id="wrap"><iframe id="f"></iframe></div>
+<script>
+    const frame = document.getElementById('f');
+    frame.addEventListener('load', () => {
+        setTimeout(() => {
+            try {
+                frame.contentWindow.location.hash = 'download';
+                setTimeout(() => {
+                    const doc = frame.contentDocument;
+                    doc.querySelector('[data-dl-tab="mod"]')?.click();
+                }, 400);
+            } catch (e) { document.title = 'ERR ' + e.message; }
+        }, 500);
+    });
+    frame.src = 'index.html';
+</script>
+</body>
+</html>
