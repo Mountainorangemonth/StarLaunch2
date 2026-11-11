@@ -1,0 +1,73 @@
+/* ════════════════════════════════════════════════════════════════
+   14. 响应式
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+    :root { --fs-display: 32px; }
+    .hero { grid-template-columns: minmax(0, 1fr) 220px; }
+    .hero-art { height: 130px; }
+    .hero-mascot { max-width: 196px; right: 0; }
+    /* 图缩小了，衬底要跟着缩，否则会光斑溢出到文字区 */
+    .hero-art::after { width: 200px; height: 130px; right: 0; bottom: -6px; }
+    .orb--a { width: 104px; height: 104px; }
+    .orb--b { width: 74px; height: 74px; right: 92px; }
+    .orb--c { width: 58px; height: 58px; }
+    .notice-layout { grid-template-columns: 172px minmax(0, 1fr); }
+}
+
+@media (max-width: 1120px) {
+    .home-row,
+    .home-grid,
+    .lib-layout,
+    .dl-layout { grid-template-columns: minmax(0, 1fr); }
+    .hero-art { display: none; }
+    .hero { grid-template-columns: minmax(0, 1fr); }
+    .notice-layout { grid-template-columns: 200px minmax(0, 1fr); }
+    .settings-layout { grid-template-columns: minmax(0, 1fr); }
+    .set-nav { position: static; flex-direction: row; overflow-x: auto; }
+    .set-nav button { white-space: nowrap; }
+    .home-side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 860px) {
+    :root { --rail-w: 64px; }
+    .rail-label { font-size: 9.5px; }
+    .notice-layout { grid-template-columns: minmax(0, 1fr); }
+    .notice-feature { max-width: 100%; }
+    .n-tag, .n-pin { display: none; }
+    .home-side { grid-template-columns: minmax(0, 1fr); }
+    .set-row { flex-direction: column; align-items: flex-start; gap: 9px; }
+    .set-value, .set-value--range { width: 100%; min-width: 0; }
+    .set-value--field { width: 100%; justify-content: flex-start; }
+    .set-value--field .set-input,
+    .set-value--field .set-select { width: 100%; }
+    .set-value--size { flex-wrap: wrap; }
+    .set-input--num { width: 90px; }
+    .field-search input { width: 120px; }
+    .mod-form { grid-template-columns: minmax(0, 1fr); }
+    .vg-note { display: none; }
+    .version-size { display: none; }
+    .mod-row-side .btn { padding: 0 8px; }
+}
+
+/* 版本页：窄窗口先把实例详情挪到下一行，文件夹栏保持窄列 */
+@media (max-width: 1120px) {
+    .lib-layout--folders { grid-template-columns: 196px minmax(0, 1fr); }
+    .lib-layout--folders .panel--detail { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+    .lib-layout--folders { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* 窄列里文件夹名放不下「内置」标签时先把它藏起来 */
+@media (max-width: 1120px) {
+    .folder-row-tag { display: none; }
+}
+
+/* 自定义内容（Custom.xaml）：窗口变窄时横向 StackPanel 自动折行，
+   不然卡片里的按钮会被挤成一条缝 */
+@media (max-width: 900px) {
+    .x-stack--h { flex-wrap: wrap; row-gap: 8px; }
+    .x-stack--h > .x-btn { flex: 0 0 auto; }
+    .notice-body.is-xaml { max-height: min(48vh, 420px); }
+}

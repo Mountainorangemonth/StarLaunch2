@@ -1,0 +1,100 @@
+/* ════════════════════════════════════════════════════════════════
+   详情规格、本周游戏柱状图
+   ════════════════════════════════════════════════════════════════ */
+
+/* 详情规格 */
+.detail-specs div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    font-size: var(--fs-xs);
+}
+
+.detail-specs dt { color: var(--text-2); flex: none; }
+
+.detail-specs dd {
+    text-align: right;
+    font-weight: 550;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 本周游戏 */
+.week-top { display: flex; align-items: baseline; gap: 6px; padding: 0 16px 10px; }
+.week-top b { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+.week-top span { font-size: var(--fs-xs); color: var(--text-2); }
+
+.delta {
+    margin-left: auto;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: var(--brand-container);
+    color: var(--on-brand-container);
+    font-size: var(--fs-micro);
+    font-style: normal;
+    font-weight: 650;
+}
+
+/* 体素柱：每根柱子是一叠方块，顶部有一条高光 —— 青金石块的堆法 */
+.week-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 76px;
+    padding: 0 16px;
+}
+
+.week-chart span {
+    position: relative;
+    flex: 1;
+    height: var(--h);
+    min-height: 8px;
+    border-radius: 5px 5px 3px 3px;
+    background:
+        repeating-linear-gradient(to bottom,
+            rgba(255, 255, 255, 0.16) 0 1px,
+            transparent 1px 8px),
+        linear-gradient(to top, rgba(var(--brand-rgb), 0.5), rgba(var(--brand-rgb), 0.31));
+    transition: height 500ms var(--ease), background-color var(--dur) ease;
+}
+
+[data-mode="dark"] .week-chart span {
+    background:
+        repeating-linear-gradient(to bottom,
+            rgba(0, 0, 0, 0.22) 0 1px,
+            transparent 1px 8px),
+        linear-gradient(to top, rgba(var(--brand-rgb), 0.78), rgba(var(--brand-rgb), 0.44));
+}
+
+.week-chart span::after {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    border-radius: 5px 5px 0 0;
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.week-chart span.is-today {
+    background:
+        repeating-linear-gradient(to bottom,
+            rgba(255, 255, 255, 0.2) 0 1px,
+            transparent 1px 8px),
+        linear-gradient(to top, var(--brand), var(--hero-solid));
+    box-shadow: 0 0 calc(6px + 14px * var(--glow)) rgba(var(--brand-rgb), calc(var(--glow) * 0.9));
+}
+
+.week-chart span:hover { filter: brightness(1.06); }
+
+.week-days {
+    display: flex;
+    gap: 6px;
+    padding: 7px 16px 14px;
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+}
+
+.week-days span { flex: 1; text-align: center; }

@@ -1,0 +1,335 @@
+/* =====================================================================
+   StarLaunch · Custom.xaml 控件样式
+   ---------------------------------------------------------------------
+   PCL 的 local:MyXXX 控件在这里落地成网页样式。
+
+   约定：
+   · 所有选择器都用 .x- 前缀，XAML 子树里不出现裸的 p / h2 选择器，
+     这样不会被公告正文的 Markdown 排版规则串味；
+   · 颜色全部来自 00-tokens.css 的令牌与 theme.js 写入的 --m3-*，
+     主题色浓度（ColorBrushN）由 16-xaml-parse.js 用 color-mix 算好；
+   · 卡片自身不叠加模糊（性能规则：模糊只留在导航栏和浮层）。
+   ===================================================================== */
+
+/* ── 页面骨架 ───────────────────────────────────────────── */
+.x-page {
+    font-size: var(--fs-sm);
+    line-height: 1.7;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.x-stack { display: flex; min-width: 0; }
+.x-stack--v { flex-direction: column; }
+.x-stack--h { flex-direction: row; align-items: stretch; }
+.x-stack--wrap { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 6px; }
+
+.x-grid { display: grid; min-width: 0; }
+.x-border { display: block; min-width: 0; }
+.x-sep { margin: 10px 0; border: 0; border-top: 1px solid var(--line-soft); }
+
+/* ── 文本 ───────────────────────────────────────────────── */
+.x-text {
+    font-size: var(--fs-sm);
+    line-height: 1.7;
+    color: var(--text);
+    min-width: 0;
+}
+.x-text a { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
+.x-text a:hover { text-decoration-thickness: 2px; }
+
+/* ── 卡片 ───────────────────────────────────────────────── */
+.x-card {
+    border-radius: var(--r-md);
+    background: rgba(var(--shadow-rgb), 0.045);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    overflow: hidden;
+    transition: background-color 180ms var(--ease), box-shadow 180ms var(--ease);
+}
+
+[data-mode="dark"] .x-card { background: rgba(255, 255, 255, 0.045); }
+
+.x-card:not(.is-static):hover {
+    background: rgba(var(--brand-rgb), 0.07);
+    box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), 0.18);
+}
+
+.x-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 11px 15px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+button.x-card-head { cursor: pointer; }
+
+.x-card-title {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--fs-body);
+    font-weight: 620;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.x-card-chevron {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    color: var(--text-2);
+    transition: transform 240ms var(--ease);
+}
+
+.x-card:not(.is-collapsed) .x-card-chevron { transform: rotate(180deg); }
+/* SwapLogoRight：折叠时箭头朝右而不是朝下 */
+.x-card.is-logo-right.is-collapsed .x-card-chevron { transform: rotate(-90deg); }
+.x-card.is-logo-right:not(.is-collapsed) .x-card-chevron { transform: rotate(0deg); }
+
+/* 折叠动画走 grid-template-rows，不用测高度，也不触发重排抖动 */
+.x-card-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 240ms var(--ease);
+}
+
+.x-card.is-collapsed .x-card-body { grid-template-rows: 0fr; }
+
+.x-card-inner { min-height: 0; overflow: hidden; }
+
+.x-card--bare { padding: 4px 0; }
+
+/* ── 提示条 ─────────────────────────────────────────────── */
+.x-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    line-height: 1.65;
+}
+
+.x-hint-icon { width: 15px; height: 15px; flex: none; margin-top: 2px; }
+.x-hint-text { min-width: 0; white-space: pre-wrap; }
+
+.x-hint--blue {
+    background: rgba(var(--brand-rgb), 0.10);
+    color: var(--text);
+}
+.x-hint--blue .x-hint-icon { color: var(--brand); }
+
+.x-hint--yellow { background: rgba(240, 178, 62, 0.16); color: #6b4b00; }
+.x-hint--yellow .x-hint-icon { color: #b0790a; }
+[data-mode="dark"] .x-hint--yellow { background: rgba(240, 178, 62, 0.14); color: #f2c86a; }
+[data-mode="dark"] .x-hint--yellow .x-hint-icon { color: #f2c86a; }
+
+.x-hint--red { background: rgba(214, 62, 62, 0.12); color: #8c1d1d; }
+.x-hint--red .x-hint-icon { color: #c62828; }
+[data-mode="dark"] .x-hint--red { background: rgba(214, 62, 62, 0.16); color: #ff9b9b; }
+[data-mode="dark"] .x-hint--red .x-hint-icon { color: #ff9b9b; }
+
+/* ── 按钮 ───────────────────────────────────────────────── */
+.x-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 34px;
+    flex: none;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    /* 底色走自定义属性：暗色模式只改这两个变量，
+       不会因为选择器权重压掉 --accent / --red / --text 各自的配色 */
+    --btn-bg: rgba(var(--shadow-rgb), 0.07);
+    --btn-bg-hover: rgba(var(--shadow-rgb), 0.12);
+    background: var(--btn-bg);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 560;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 160ms var(--ease), box-shadow 160ms var(--ease),
+        transform 160ms var(--ease), filter 160ms var(--ease);
+}
+
+[data-mode="dark"] .x-btn {
+    --btn-bg: rgba(255, 255, 255, 0.09);
+    --btn-bg-hover: rgba(255, 255, 255, 0.14);
+}
+
+.x-btn:hover { background: var(--btn-bg-hover); }
+.x-btn:active { transform: scale(0.97); }
+
+.x-btn-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+
+.x-btn--accent {
+    background: var(--brand);
+    color: var(--on-brand);
+    box-shadow: 0 3px 12px rgba(var(--brand-rgb), 0.26);
+}
+.x-btn--accent:hover { background: var(--brand); filter: brightness(1.06); }
+
+.x-btn--soft { background: rgba(var(--brand-rgb), 0.12); color: var(--brand); }
+.x-btn--soft:hover { background: rgba(var(--brand-rgb), 0.18); }
+
+.x-btn--red { background: rgba(214, 62, 62, 0.12); color: #c62828; }
+.x-btn--red:hover { background: rgba(214, 62, 62, 0.18); }
+[data-mode="dark"] .x-btn--red { background: rgba(214, 62, 62, 0.18); color: #ff9b9b; }
+
+.x-btn--plain { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.x-btn--plain:hover { background: rgba(var(--shadow-rgb), 0.06); }
+[data-mode="dark"] .x-btn--plain { background: transparent; }
+
+.x-btn--text {
+    height: auto;
+    min-height: 0;
+    padding: 0 6px;
+    background: none;
+    color: var(--brand);
+    font-weight: 600;
+    box-shadow: none;
+}
+.x-btn--text:hover { background: rgba(var(--brand-rgb), 0.08); }
+
+.x-btn--square {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 9px;
+}
+
+.x-logo { width: 16px; height: 16px; flex: none; }
+
+/* ── 列表项 ─────────────────────────────────────────────── */
+.x-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.x-item.is-clickable { cursor: pointer; transition: background-color 160ms var(--ease); }
+.x-item.is-clickable:hover { background: rgba(var(--brand-rgb), 0.08); }
+.x-item.is-clickable:active { background: rgba(var(--brand-rgb), 0.13); }
+
+.x-item-logo {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: none;
+    border-radius: 8px;
+    background: rgba(var(--shadow-rgb), 0.07);
+    color: var(--text-2);
+    overflow: hidden;
+}
+
+[data-mode="dark"] .x-item-logo { background: rgba(255, 255, 255, 0.08); }
+.x-item-logo .icon { width: 16px; height: 16px; }
+.x-item-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+.x-item-copy { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.x-item-title {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.x-item-info {
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.x-item-arrow { width: 13px; height: 13px; flex: none; color: var(--text-2); opacity: 0.7; }
+
+/* ── 图片 / 矢量图 ──────────────────────────────────────── */
+.x-image-wrap { display: flex; max-width: 100%; min-width: 0; }
+.x-image {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: var(--r-xs);
+}
+.x-image-miss {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 9px;
+    border-radius: var(--r-xs);
+    background: rgba(var(--shadow-rgb), 0.07);
+    color: var(--text-2);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+}
+
+[data-mode="dark"] .x-image-miss { background: rgba(255, 255, 255, 0.08); }
+.x-path { display: block; flex: none; }
+
+/* ── 弹窗 / 出错提示 ────────────────────────────────────── */
+.x-modal-title {
+    margin: 0 0 10px;
+    font-size: var(--fs-h2);
+    font-weight: 650;
+    color: var(--text);
+}
+
+.x-modal-body {
+    font-size: var(--fs-sm);
+    line-height: 1.7;
+    color: var(--text-2);
+    max-height: 46vh;
+    overflow: auto;
+    overflow-wrap: anywhere;
+}
+
+.x-modal-body p { margin: 0 0 6px; white-space: pre-wrap; }
+.x-modal-body p:last-child { margin-bottom: 0; }
+
+.x-message {
+    padding: 14px 16px;
+    border-radius: var(--r-sm);
+    border: 1px dashed var(--line);
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+}
+
+.x-message-text { margin: 0; }
+.x-message-detail {
+    margin: 10px 0 0;
+    max-height: 150px;
+    padding: 8px 10px;
+    overflow: auto;
+    border-radius: var(--r-xs);
+    background: rgba(var(--shadow-rgb), 0.06);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+
+/* 复制文本用的隐藏缓冲，避免在界面上闪一下 */
+.x-copy-buffer {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    opacity: 0;
+}

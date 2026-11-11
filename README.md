@@ -84,28 +84,92 @@
 | 请求路径 | 来源 |
 | --- | --- |
 | `/index.html` | `StarLaunch.WebAssets.index.html` |
-| `/style.css` | `StarLaunch.WebAssets.style.css` |
-| `/app.js` | `StarLaunch.WebAssets.app.js` |
+| `/app.js` | `StarLaunch.WebAssets.app.js`（引导） |
+| `/js/<file>` | `StarLaunch.WebAssets.js.<file>` |
+| `/css/<file>` | `StarLaunch.WebAssets.css.<file>` |
 | `/theme.js` | `StarLaunch.WebAssets.theme.js` |
 | `/mcu.js` | `StarLaunch.WebAssets.mcu.js` |
 | `/assets/<file>` | `StarLaunch.WebAssets.assets.<file>` |
+| `/api/versions` | 宿主实时扫描 `.minecraft/versions` 生成 |
 | `/wallpapers/manifest.json` | 宿主实时扫描壁纸目录生成 |
 | `/wallpapers/<file>` | 从 `wallpapers\`（或 LocalAppData 回退目录）读取 |
 
 映射规则：把请求路径的 `/` 换成 `.`，加上 `StarLaunch.WebAssets.` 前缀，再从程序集里取流。
 找不到时返回 404，方便在页面里直接看到缺哪个文件。
 
-**新增网页资源时必须同时加入 `StarLaunch.csproj`**，否则编译后的 exe 里没有它：
+网页资源在 `StarLaunch.csproj` 里按目录通配嵌入，**新增文件不用再改 csproj**：
 
 ```xml
-<EmbeddedResource Include="WebAssets\app.js">
-  <LogicalName>StarLaunch.WebAssets.app.js</LogicalName>
-</EmbeddedResource>
+<EmbeddedResource Include="WebAssets\**\*.html" />
+<EmbeddedResource Include="WebAssets\**\*.css" />
+<EmbeddedResource Include="WebAssets\**\*.js" />
+<EmbeddedResource Include="WebAssets\assets\**\*" />
 ```
 
 > 这是本项目最容易踩的坑：直接用浏览器打开 `index.html` 一切正常，但编译后如果漏嵌了
 > 某个 `<script>` / `<link>` / 图片，宿主只会返回 404，对应功能会静默失效。
 > `mcu.js` 和 `theme.js` 曾经就因为漏嵌，导致 exe 里主题引擎完全没有启动。
+
+### 源码结构
+
+C# 侧按「主窗口生命周期 / 宿主通信 / 接口」分文件，都是同一个 `MainWindow` 的 partial：
+
+```
+MainWindow.xaml.cs        窗口生命周期、WebView2 初始化、窗口状态
+Host/WebMessages.cs       网页 → 宿主的消息分发
+Host/WebResources.cs      虚拟域名资源服务与 /api 路由
+Host/NoticeFiles.cs       公告文件的选择与读取
+Host/CustomHome.cs        Custom.xaml 的生成、监听与推送
+Api/VersionsApi.cs        GET /api/versions、游戏目录切换
+Api/WallpapersApi.cs      壁纸目录扫描与 /wallpapers/*
+Api/LocalFilesApi.cs      GET /api/local-image、本地图片读取
+Services/LauncherConfig.cs   配置持久化、游戏目录解析
+Services/MinecraftScanner.cs 扫描 .minecraft/versions
+Services/CustomHome.cs       Custom.xaml 路径、模板与读写
+```
+
+网页侧同理，`js/` 下一个文件一个功能块，通过全局 `SL` 命名空间互相调用（不用 ESM，
+这样 `file://` 双击也能跑）。加载顺序由 `index.html` 的 `<script>` 决定：
+
+```
+js/00-core.js        工具函数、localStorage
+js/01-data.js        静态数据（还没接后端的示例内容）
+js/02-state.js       跨模块共享的偏好与当前实例
+js/03-host.js        WebView2 桥接
+js/04-clock.js       主页时钟与问候
+js/05-router.js      视图切换
+js/06-ui.js          Toast / 浮层 / 快捷键
+js/07-home.js        主页实例与内存
+js/08-versions.js    版本管理
+js/09-notice.js      公告与启动日志
+js/10-launch.js      启动流程
+js/11-download.js    下载中心
+js/12-appearance.js  外观与壁纸
+js/13-settings.js    启动选项
+js/14-folders.js     游戏文件夹列表（多 .minecraft）
+js/15-events.js      全局点击委托
+js/16-xaml-parse.js  Custom.xaml 解析（PCL 控件 → 节点树）
+js/17-xaml-view.js   Custom.xaml 渲染与事件
+app.js               引导：按顺序挂事件、渲染初始状态
+```
+
+样式在 `css/` 下按域拆分，顺序不能乱（令牌 → 外壳 → 组件 → 各页面 → 杂项 → 响应式）。
+
+模块之间的约定：每个文件是一个 IIFE，开头从 `SL` 上取用别人的东西，结尾把自己的接口挂回去：
+
+```js
+(function (global) {
+    const SL = global.SL;
+    const { $ } = SL.core;                     // core / data / state 先加载，可以直接解构
+    const ui = SL.core.mod('ui');              // 其它模块可能循环引用，运行到再取
+    const toast = (...args) => ui.toast(...args);
+
+    function doSomething() { ... }
+
+    SL.versions = Object.assign(SL.versions || {}, { doSomething });
+})(window);
+```
+
 
 ### 窗口桥接
 
@@ -128,6 +192,41 @@
   `%LOCALAPPDATA%\StarLaunch\WebView2`；
 - Windows 11 下通过 `DwmSetWindowAttribute` 开启系统圆角，Win10 及更早版本保持默认形状；
 - 资源响应带 `Cache-Control: no-store`，重新编译后不会读到缓存里的旧页面。
+
+### 自定义主页（PCL 兼容的 Custom.xaml）
+
+公告全部已读后，公告栏会显示自定义内容。默认来源是启动器配置目录里的
+`Custom.xaml`（和 `StarLaunch.config.json` 同目录：exe 同级，不可写时退到
+`%LOCALAPPDATA%\StarLaunch`）——和 PCL 一样，文件不存在就自动生成一份模板。
+
+- 宿主用 `FileSystemWatcher` 盯着这个文件，改完保存后防抖 260 ms 重新读盘，
+  通过 `custom-home` 消息推给网页，界面直接刷新，不用重启；
+- 网页启动时也会 `GET /api/custom-home` 拉一次，避免推送比页面先到；
+- 设置页保留「空白预设」和「手选本地文件」作为替代来源，手动选的文件优先。
+
+渲染器在 `js/16-xaml-parse.js` + `js/17-xaml-view.js`，支持 PCL 的控件子集：
+
+```
+容器  StackPanel（横 / 纵）、Grid（ColumnDefinitions / RowDefinitions）、Border
+基础  TextBlock（Run / Bold / Italic / Hyperlink / LineBreak）、Path、Separator
+PCL   local:MyCard / MyHint / MyImage / MyButton / MyTextButton
+      local:MyIconTextButton / MyIconButton / MyListItem
+```
+
+属性按 WPF 语义处理：`Margin` / `Padding`（左,上,右,下）、`Width` / `Height`、
+`HorizontalAlignment` / `VerticalAlignment`、`FontSize` / `FontWeight` / `Foreground`、
+`TextWrapping`、`Visibility`、`IsHitTestVisible`；颜色认 `#AARRGGBB`、颜色名和
+`{DynamicResource ColorBrush1…8}`（用 `color-mix` 从主题色派生）。
+
+`EventType` / `EventData` 会真的执行：打开网页、弹出窗口、复制文本、打开文件 /
+文件夹、启动游戏、下载文件、修改变量、刷新页面、打开帮助。`local:CustomEventService.Events`
+里的多个事件按顺序执行，`{variable:名字:默认值}` 用于跨事件传状态。
+
+本地图片走 `GET /api/local-image?path=…` 由宿主读盘（只放行图片扩展名、单文件 16 MB），
+相对路径按 Custom.xaml 所在目录解析。PCL 内置的 `pack://application:,,,/images/...`
+图片没有随包分发，渲染成带名字的占位块。
+
+模板文件在 `Resources/Custom.xaml`，改完记得重新编译——它以嵌入资源的形式写进程序集。
 
 ## Material You 配色
 

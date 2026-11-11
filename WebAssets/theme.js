@@ -253,6 +253,53 @@
     }
 
     /* -----------------------------------------------------------------
+       色调过渡
+       -----------------------------------------------------------------
+       直接改 CSS 变量的话，玻璃面板、文字、描边会瞬间跳色。两个机制配合：
+
+       1) 换色时给 <html> 挂一段短命的 .is-theming，让元素自身的
+          background-color / color / border-color 等走 CSS transition。
+          玻璃面板的颜色来自 rgb 三元组（rgba(var(--glass-rgb), a)），
+          变量本身没法插值，只能靠元素属性过渡。
+       2) 用 CSS.registerProperty 把几个关键颜色变量注册成 <color>，
+          再单独给它们声明 transition。这样写在渐变里的 var(--brand)
+          也会逐帧插值重算 —— 普通 transition 做不到这一点。
+
+       拖动取色滑块时走的是 silent 更新，不挂这个类，保持跟手不拖泥带水。 */
+
+    const FADE_MS = 380;
+    let fadeTimer = 0;
+    let painted = false;
+
+    const ANIMATABLE_COLORS = [
+        '--brand', '--brand-container', '--on-brand', '--on-brand-container',
+        '--hero', '--hero-solid', '--on-hero',
+        '--selected', '--selected-solid', '--on-selected',
+        '--text', '--text-2',
+        '--aura-a', '--aura-b', '--aura-c',
+        '--m3-tertiary', '--m3-tertiary-container',
+        '--m3-surface-container-highest', '--m3-outline'
+    ];
+
+    function registerAnimatableColors() {
+        if (!global.CSS || typeof global.CSS.registerProperty !== 'function') return;
+        ANIMATABLE_COLORS.forEach((name) => {
+            try {
+                global.CSS.registerProperty({ name: name, syntax: '<color>', inherits: true, initialValue: 'rgb(0 0 0)' });
+            } catch (err) {
+                // 已经注册过或语法不支持：保持不变，只是这一项没有过渡
+            }
+        });
+    }
+
+    function beginFade() {
+        const root = document.documentElement;
+        if (!root.classList.contains('is-theming')) root.classList.add('is-theming');
+        global.clearTimeout(fadeTimer);
+        fadeTimer = global.setTimeout(() => root.classList.remove('is-theming'), FADE_MS);
+    }
+
+    /* -----------------------------------------------------------------
        写入 CSS 变量
        ----------------------------------------------------------------- */
     function applyMaterialVars(isDark, roles) {
@@ -609,10 +656,14 @@
     /* -----------------------------------------------------------------
        渲染 / 对外 API
        ----------------------------------------------------------------- */
-    function render() {
+    function render(options) {
+        const opts = options || {};
+        // 首帧不淡入：那时候不需要过渡，反而会拖慢第一次上色
+        if (painted && opts.fade !== false) beginFade();
         resolvedMode = resolveMode();
         const tokens = applyTokens();
         document.documentElement.dataset.mode = resolvedMode;
+        painted = true;
         return tokens;
     }
 
@@ -672,8 +723,9 @@
 
         // 只动玻璃/模糊/泛光时复用已有色板，避免每一帧重算 56 个 M3 角色。
         if (colorChanged) {
-            render();
+            render({ fade: opts.silent !== true });
         } else if (materialChanged) {
+            if (painted && opts.silent !== true) beginFade();
             if (currentTokens) applyMaterialVars(currentTokens.isDark, currentTokens.roles);
             else render();
         }
@@ -710,6 +762,7 @@
 
     function init() {
         load();
+        registerAnimatableColors();
         if (!MCU) {
             console.error('Material Color Utilities 未加载：mcu.js 缺失或损坏，界面将以默认色运行');
             document.documentElement.dataset.mode = resolveMode();

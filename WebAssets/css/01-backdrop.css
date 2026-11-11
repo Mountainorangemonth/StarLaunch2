@@ -1,0 +1,46 @@
+/* ════════════════════════════════════════════════════════════════
+   2. 背景层
+   ════════════════════════════════════════════════════════════════ */
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: var(--m3-surface);
+    transition: background-color 400ms var(--ease);
+}
+
+/* 氛围光：没有壁纸时它承担「被模糊的东西」，有壁纸时只做一层染色 */
+.backdrop__ambient {
+    position: absolute;
+    inset: -12%;
+    opacity: 1;
+    transition: opacity 500ms var(--ease);
+    background:
+        radial-gradient(46% 52% at 18% 14%, var(--aura-a) 0%, transparent 62%),
+        radial-gradient(42% 46% at 84% 8%, var(--aura-b) 0%, transparent 60%),
+        radial-gradient(60% 58% at 72% 88%, var(--aura-c) 0%, transparent 66%),
+        radial-gradient(38% 40% at 32% 78%, var(--aura-b) 0%, transparent 62%);
+    filter: saturate(1.05);
+    animation: aura-drift 46s ease-in-out infinite alternate;
+}
+
+.has-photo .backdrop__ambient { opacity: 0.34; }
+
+@keyframes aura-drift {
+    from { transform: translate3d(-1.5%, -1%, 0) scale(1.02); }
+    to { transform: translate3d(2%, 1.5%, 0) scale(1.06); }
+}
+
+.backdrop__photo {
+    position: absolute;
+    inset: 0;
+    background-position: center 42%;
+    background-size: cover;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transform: scale(1.02);
+    transition: opacity 700ms var(--ease), transform 1200ms var(--ease);
+}
+
+.backdrop__photo.is-active { opacity: 1; }

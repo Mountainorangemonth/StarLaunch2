@@ -1,0 +1,264 @@
+/* ════════════════════════════════════════════════════════════════
+   3. 外壳与标题栏
+   ════════════════════════════════════════════════════════════════ */
+.app {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* 宿主依赖这两个类名：整条可拖拽，按钮排除拖拽 */
+.custom-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: var(--titlebar-h);
+    flex: none;
+    padding: 0 14px;
+    app-region: drag;
+    -webkit-app-region: drag;
+    user-select: none;
+}
+
+.custom-titlebar button,
+.custom-titlebar input,
+.custom-titlebar a {
+    app-region: no-drag;
+    -webkit-app-region: no-drag;
+}
+
+.tb-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+
+/* 徽标外框：只负责尺寸与居中，配色和底纹交给 .tb-logo--brand。
+   原来这里是紫色渐变 + 内联星形图标，现在图标换成图片，那些都成了死代码。 */
+.tb-logo {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 9px;
+}
+
+.tb-logo--lg { width: 42px; height: 42px; border-radius: 14px; }
+
+/* 品牌图标：彗星图。
+   斜向构图在方形框里左右会留白，所以框比原来的星形标略大一点，
+   否则 30px 下尾巴会糊成一团。 */
+.tb-logo--brand {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: transparent;
+    box-shadow: none;
+}
+
+.tb-logo--brand img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(var(--shadow-rgb), 0.3));
+    -webkit-user-drag: none;
+}
+
+.tb-logo--lg.tb-logo--brand { width: 48px; height: 48px; border-radius: 14px; }
+
+.tb-name {
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+}
+
+.tb-crumb {
+    padding-left: 11px;
+    margin-left: 3px;
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+    border-left: 1px solid var(--line-soft);
+}
+
+.tb-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+    padding: 0 12px;
+    height: 26px;
+    border-radius: 999px;
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+    background: var(--glass-weak);
+    box-shadow: inset 0 1px 0 var(--specular);
+}
+
+.pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--brand);
+    box-shadow: 0 0 0 0 rgba(var(--brand-rgb), 0.5);
+    animation: pulse 2.8s ease-out infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(var(--brand-rgb), 0.42); }
+    68% { box-shadow: 0 0 0 7px rgba(var(--brand-rgb), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--brand-rgb), 0); }
+}
+
+.tb-controls { display: flex; align-items: center; gap: 2px; margin-left: 6px; }
+
+.custom-titlebar .tb-btn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 28px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.custom-titlebar .tb-btn .icon { width: 13px; height: 13px; stroke-width: 1.8; }
+.custom-titlebar .tb-btn:hover { background: rgba(var(--brand-rgb), 0.14); color: var(--text); }
+.custom-titlebar .tb-btn:active { transform: scale(0.92); }
+.custom-titlebar .tb-btn--close:hover { background: var(--m3-error); color: var(--m3-on-error); }
+
+.custom-titlebar.controls-center .tb-controls {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   4. 主区域与导航
+   ════════════════════════════════════════════════════════════════ */
+.shell {
+    flex: 1;
+    display: flex;
+    gap: 14px;
+    min-height: 0;
+    padding: 0 14px 14px;
+}
+
+.rail {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: var(--rail-w);
+    padding: 10px 8px;
+    border-radius: var(--r-lg);
+    background: var(--glass);
+    box-shadow:
+        inset 0 1px 0 var(--specular),
+        inset 0 -1px 0 rgba(var(--shadow-rgb), 0.04),
+        var(--shadow-1);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .rail {
+        backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    }
+}
+
+.rail-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 10px 2px 8px;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: color var(--dur-fast) ease, background-color var(--dur-fast) ease,
+        transform 180ms var(--ease-spring);
+}
+
+.rail-item .icon { width: 19px; height: 19px; }
+.rail-label { font-size: 10.5px; letter-spacing: 0.02em; }
+
+.rail-indicator {
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    width: 3px;
+    height: 0;
+    border-radius: 999px;
+    background: var(--brand);
+    transform: translateY(-50%);
+    transition: height 260ms var(--ease);
+}
+
+.rail-item:hover { color: var(--text); background: rgba(var(--brand-rgb), 0.08); }
+.rail-item:active { transform: scale(0.94); }
+
+.rail-item.is-active {
+    color: var(--on-brand-container);
+    background: var(--selected);
+    box-shadow:
+        inset 0 1px 0 var(--specular),
+        0 0 calc(6px + 16px * var(--glow)) rgba(var(--brand-rgb), calc(var(--glow) * 0.5));
+}
+
+.rail-item.is-active .rail-indicator { height: 20px; }
+
+.rail-foot { margin-top: auto; padding-top: 8px; width: 100%; }
+
+.rail-avatar {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    padding: 8px 0 4px;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease;
+}
+
+.rail-avatar:hover { background: rgba(var(--brand-rgb), 0.1); }
+
+.avatar {
+    position: relative;
+    display: block;
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    overflow: hidden;
+    box-shadow: 0 0 0 2px rgba(var(--glass-rgb), 0.9), 0 0 0 3.5px rgba(var(--brand-rgb), 0.4);
+}
+
+.avatar--sm { width: 40px; height: 40px; border-radius: 13px; }
+
+.avatar--ring { display: grid; place-items: center; overflow: visible; }
+
+.skin, .avatar .skin {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    border-radius: inherit;
+}
+
+.online {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #34c759;
+    box-shadow: 0 0 0 2.5px rgba(var(--glass-rgb), 0.95);
+}

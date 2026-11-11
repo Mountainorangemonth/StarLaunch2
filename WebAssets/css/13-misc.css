@@ -1,0 +1,84 @@
+/* ════════════════════════════════════════════════════════════════
+   12. 滚动条
+   ════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+    background-color: color-mix(in srgb, var(--brand) 34%, transparent);
+}
+
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--brand) 62%, transparent); }
+
+/* ════════════════════════════════════════════════════════════════
+   13. 性能模式 / 低动效
+   ════════════════════════════════════════════════════════════════ */
+[data-performance="on"] .backdrop__ambient,
+[data-performance="on"] .hero-mascot,
+[data-performance="on"] .pulse { animation: none; }
+
+[data-performance="on"] .panel,
+[data-performance="on"] .slab,
+[data-performance="on"] .rail,
+[data-performance="on"] .set-head {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--glass-strong);
+}
+
+/* 浮层在性能模式下同样是实底，不能因为关掉模糊而变得透光 */
+[data-performance="on"] .popover,
+[data-performance="on"] .modal-card,
+[data-performance="on"] .toast,
+[data-performance="on"] .inst-pop {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--glass-float);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   13.5 色调过渡
+   ════════════════════════════════════════════════════════════════
+   换色时 theme.js 给 <html> 挂上 .is-theming（约 380ms 后自动摘掉）。
+   transition 只在这个窗口期生效，平时不加，免得拖累 hover 和其它动效。
+
+   · 元素属性：覆盖玻璃面板这类「颜色来自 rgb 三元组」的表面，
+     变量本身插值不了，只能让元素自己的 background-color 过去。
+   · 注册过的颜色变量（theme.js 里 CSS.registerProperty）：让写在
+     渐变里的 var(--brand) 也能逐帧重算，普通 transition 做不到。 */
+html.is-theming,
+html.is-theming *,
+html.is-theming *::before,
+html.is-theming *::after {
+    transition-property: background-color, border-color, color, fill, stroke,
+        outline-color, box-shadow, text-decoration-color !important;
+    transition-duration: 380ms !important;
+    transition-timing-function: var(--ease) !important;
+}
+
+html.is-theming {
+    transition-property: --brand, --brand-container, --on-brand, --on-brand-container,
+        --hero, --hero-solid, --on-hero, --selected, --selected-solid, --on-selected,
+        --text, --text-2, --aura-a, --aura-b, --aura-c, --m3-tertiary,
+        --m3-tertiary-container, --m3-surface-container-highest, --m3-outline,
+        background-color !important;
+    transition-duration: 480ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 窗口最小化 / 切后台时暂停一切动画 */
+.is-idle .backdrop__ambient,
+.is-idle .hero-mascot,
+.is-idle .pulse { animation-play-state: paused; }

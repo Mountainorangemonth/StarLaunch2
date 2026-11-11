@@ -1,0 +1,387 @@
+/* ════════════════════════════════════════════════════════════════
+   6. 材质原语
+   ════════════════════════════════════════════════════════════════ */
+
+/* 面板：唯一的玻璃载体。内部不要再套玻璃。 */
+.panel,
+.slab {
+    position: relative;
+    border-radius: var(--r-md);
+    background: var(--glass);
+    box-shadow:
+        inset 0 1px 0 var(--specular),
+        inset 0 -1px 0 rgba(var(--shadow-rgb), 0.05),
+        var(--shadow-1);
+    transition: background-color 300ms var(--ease), box-shadow 300ms var(--ease);
+}
+
+.slab--launch {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    box-shadow:
+        inset 0 1px 0 var(--specular),
+        var(--shadow-2);
+}
+
+/*
+ * backdrop-filter 会让 .slab 成为层叠上下文，浮层的 z-index 就被困在里面，
+ * 永远盖不过后面的公告面板。展开时把整块抬到兄弟网格之上即可。
+ */
+.slab--launch.is-expanded {
+    z-index: 30;
+    box-shadow:
+        inset 0 1px 0 var(--specular),
+        var(--shadow-2),
+        0 0 0 1px rgba(var(--brand-rgb), 0.18);
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+}
+
+.panel-head h2 {
+    font-size: var(--fs-h2);
+    font-weight: 640;
+    letter-spacing: -0.008em;
+}
+
+.panel-note { font-size: var(--fs-xs); color: var(--text-2); }
+.panel-tools { display: flex; align-items: center; gap: 12px; }
+
+.panel-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+    border-top: 1px solid var(--line-soft);
+}
+
+.link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 2px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--brand);
+    font-size: var(--fs-xs);
+    font-weight: 560;
+    cursor: pointer;
+    transition: color var(--dur-fast) ease, opacity var(--dur-fast) ease;
+}
+
+.link:hover { opacity: 0.72; text-decoration: underline; text-underline-offset: 3px; }
+
+.live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+}
+
+.live i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--brand);
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    height: 21px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(var(--brand-rgb), 0.12);
+    color: var(--brand);
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.pill--accent {
+    background: var(--brand-container);
+    color: var(--on-brand-container);
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    height: 19px;
+    margin-left: 7px;
+    padding: 0 7px;
+    border-radius: 6px;
+    background: rgba(var(--brand-rgb), 0.12);
+    color: var(--brand);
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    vertical-align: 1px;
+}
+
+.chip-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: rgba(var(--brand-rgb), 0.12);
+    color: var(--brand);
+    font-size: var(--fs-micro);
+    font-weight: 600;
+}
+
+.chip-ok i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* ── 按钮 ─────────────────────────────────────────────── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease,
+        box-shadow var(--dur-fast) ease, transform 180ms var(--ease-spring);
+}
+
+.btn .icon { width: 15px; height: 15px; }
+.btn:active { transform: scale(0.96); }
+.btn:disabled { opacity: 0.55; cursor: default; transform: none; }
+
+.btn-filled {
+    background: var(--brand);
+    color: var(--on-brand);
+    box-shadow: 0 2px 8px rgba(var(--brand-rgb), 0.24);
+}
+
+.btn-filled:hover { box-shadow: 0 4px 16px rgba(var(--brand-rgb), calc(0.3 + var(--glow) * 0.4)); }
+
+.btn-tonal {
+    background: var(--brand-container);
+    color: var(--on-brand-container);
+}
+
+.btn-tonal:hover { background: color-mix(in srgb, var(--brand-container) 82%, var(--brand)); }
+
+.btn-ghost {
+    background: var(--glass-weak);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.btn-ghost:hover { background: var(--glass); }
+
+.btn-sm { height: 30px; padding: 0 12px; font-size: var(--fs-xs); }
+.btn-block { width: 100%; }
+
+.icon-btn {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.icon-btn:hover { background: rgba(var(--brand-rgb), 0.1); color: var(--text); }
+.icon-btn .icon { width: 15px; height: 15px; }
+
+/* ── 分段控件 ─────────────────────────────────────────── */
+.seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(var(--shadow-rgb), 0.06);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+[data-mode="dark"] .seg { background: rgba(255, 255, 255, 0.06); }
+
+.seg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-2);
+    font-size: var(--fs-xs);
+    font-weight: 560;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease,
+        box-shadow var(--dur-fast) ease;
+}
+
+.seg button .icon { width: 13px; height: 13px; }
+.seg button:hover { color: var(--text); }
+
+.seg button.is-active {
+    background: rgba(var(--glass-rgb), 0.92);
+    color: var(--text);
+    box-shadow: var(--shadow-1);
+}
+
+.seg--sm button { height: 23px; padding: 0 10px; font-size: var(--fs-micro); }
+.seg--icons button { padding: 0 10px; }
+.seg button:disabled { opacity: 0.45; cursor: default; }
+
+/* ── 输入 ─────────────────────────────────────────────── */
+.field-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--glass);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text-2);
+    flex: none;
+    transition: box-shadow var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+
+.field-search:focus-within {
+    background: var(--glass-strong);
+    box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), 0.6),
+        0 0 calc(4px + 14px * var(--glow)) rgba(var(--brand-rgb), calc(var(--glow) * 0.9));
+}
+
+.field-search .icon { width: 15px; height: 15px; flex: none; }
+
+.field-search input {
+    width: 168px;
+    min-width: 0;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-sm);
+    line-height: 1;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* WebView2 / Chromium 自带的搜索清除按钮会撑坏胶囊形输入框，统一去掉 */
+.field-search input::-webkit-search-decoration,
+.field-search input::-webkit-search-cancel-button,
+.field-search input::-webkit-search-results-button,
+.field-search input::-webkit-search-results-decoration {
+    display: none;
+    -webkit-appearance: none;
+}
+
+.field-search input::placeholder { color: var(--text-2); opacity: 0.75; }
+
+/* ── 滑杆 ─────────────────────────────────────────────── */
+.range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 18px;
+    margin: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.range::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(to right,
+        var(--brand) 0%,
+        var(--brand) var(--p, 50%),
+        rgba(var(--shadow-rgb), 0.14) var(--p, 50%),
+        rgba(var(--shadow-rgb), 0.14) 100%);
+}
+
+[data-mode="dark"] .range::-webkit-slider-runnable-track {
+    background: linear-gradient(to right,
+        var(--brand) 0%,
+        var(--brand) var(--p, 50%),
+        rgba(255, 255, 255, 0.14) var(--p, 50%),
+        rgba(255, 255, 255, 0.14) 100%);
+}
+
+.range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    margin-top: -5px;
+    border: 3px solid var(--glass-rgb);
+    border-radius: 50%;
+    background: var(--brand);
+    box-shadow: 0 1px 4px rgba(var(--shadow-rgb), 0.3);
+    transition: transform 160ms var(--ease-spring);
+}
+
+.range:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.range:active::-webkit-slider-thumb { transform: scale(0.96); }
+.range:disabled { opacity: 0.45; cursor: default; }
+.range--sm { max-width: 168px; }
+
+/* ── 开关 ─────────────────────────────────────────────── */
+.switch {
+    position: relative;
+    flex: none;
+    width: 44px;
+    height: 26px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(var(--shadow-rgb), 0.16);
+    cursor: pointer;
+    transition: background-color var(--dur) var(--ease);
+}
+
+[data-mode="dark"] .switch { background: rgba(255, 255, 255, 0.18); }
+
+.switch::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--m3-surface);
+    transform: translateY(-50%);
+    box-shadow: 0 1px 3px rgba(var(--shadow-rgb), 0.35);
+    transition: left var(--dur) var(--ease-spring), width var(--dur) var(--ease-spring),
+        background-color var(--dur) var(--ease);
+}
+
+.switch[aria-checked="true"] { background: var(--brand); }
+.switch[aria-checked="true"]::after { left: 22px; background: var(--on-brand); }
+.switch:active::after { width: 21px; }

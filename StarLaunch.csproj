@@ -10,34 +10,24 @@
   </PropertyGroup>
 
 	<ItemGroup>
-		<!-- 假设你的 index.html 在 WebAssets 文件夹下 -->
-		<EmbeddedResource Include="WebAssets\index.html">
-			<LogicalName>StarLaunch.WebAssets.index.html</LogicalName>
-		</EmbeddedResource>
+		<!-- 网页资源：按目录通配编进程序集，宿主把 URL 路径里的 / 换成 .
+		     就是资源名（/js/00-core.js → StarLaunch.WebAssets.js.00-core.js）。
+		     新增模块文件不需要再改这里。 -->
+		<EmbeddedResource Include="WebAssets\**\*.html" />
+		<EmbeddedResource Include="WebAssets\**\*.css" />
+		<EmbeddedResource Include="WebAssets\**\*.js" />
 
-		<!-- 对 style.css 做同样处理 -->
-		<EmbeddedResource Include="WebAssets\style.css">
-			<LogicalName>StarLaunch.WebAssets.style.css</LogicalName>
-		</EmbeddedResource>
-
-		<!-- UI 交互脚本 -->
-		<EmbeddedResource Include="WebAssets\app.js">
-			<LogicalName>StarLaunch.WebAssets.app.js</LogicalName>
-		</EmbeddedResource>
-
-		<!-- 主题引擎：index.html 用 <script> 引用了这两个文件，
-		     漏掉任何一个，WebView2 里都会 404，StarTheme 就不存在 -->
-		<EmbeddedResource Include="WebAssets\mcu.js">
-			<LogicalName>StarLaunch.WebAssets.mcu.js</LogicalName>
-		</EmbeddedResource>
-		<EmbeddedResource Include="WebAssets\theme.js">
-			<LogicalName>StarLaunch.WebAssets.theme.js</LogicalName>
-		</EmbeddedResource>
-
-		<!-- 其他静态资源：编进程序集；用户壁纸由宿主扫描 wallpapers 文件夹，
+		<!-- 图片等静态资源：用户壁纸由宿主扫描外部 wallpapers 文件夹，
 		     exe 同级目录不可写时退回 %LOCALAPPDATA%\StarLaunch\wallpapers -->
 		<EmbeddedResource Include="WebAssets\assets\**\*" />
 		<Content Include="Resources\favicon.ico" />
+
+		<!-- 自定义主页模板：配置目录里没有 Custom.xaml 时用它生成一份，
+		     资源名固定为 StarLaunch.Resources.Custom.xaml（见 Services\CustomHome.cs）。
+		     必须先把它从 WPF 默认的 Page 通配里摘出来：UseWPF 会把 **\*.xaml 全都
+		     当页面编译，而这份模板里有 local:MyCard 这种只有 PCL 才认识的控件。 -->
+		<Page Remove="Resources\Custom.xaml" />
+		<EmbeddedResource Include="Resources\Custom.xaml" />
 
 		<!-- 开发时放进 wallpapers 的图片会复制到输出目录，方便直接看效果。
 		     用 Update 而不是 Include，避免和 SDK 默认 None 项重复。 -->

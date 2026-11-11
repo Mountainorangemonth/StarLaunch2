@@ -1,0 +1,76 @@
+<!-- StarLaunch 自定义主页（兼容 PCL 的 Custom.xaml）
+     这个文件放在启动器配置目录里，改完保存后界面会自动刷新，不用重启。
+     删掉它也没关系，下次启动会重新生成一份。
+
+     控件都是 PCL 那一套 local:MyXXX，属性写法也一样：
+       MyCard（卡片）  CanSwap 可折叠 / IsSwapped 默认折叠
+       TextBlock（文本）Text / FontSize / FontWeight / Foreground / TextWrapping
+       MyHint（提示条）Theme = Blue / Yellow / Red
+       MyImage（图片） Source 可以写网址，也可以写本地路径或 Custom.xaml 旁边的相对路径
+       MyButton / MyTextButton / MyIconTextButton / MyIconButton（按钮）
+       MyListItem（列表项）Logo / Title / Info / Type=Clickable
+       EventType + EventData 控制点击后干什么：打开网页、弹出窗口、复制文本、
+       启动游戏、打开文件、下载文件、修改变量、刷新页面…… -->
+
+<local:MyCard Title="欢迎回来" Margin="0,0,0,12">
+    <StackPanel Margin="16,12,16,14">
+        <TextBlock TextWrapping="Wrap" Margin="0,0,0,6" FontSize="15" FontWeight="Bold"
+                   Text="这是 StarLaunch 的自定义内容区。" />
+        <TextBlock TextWrapping="Wrap" Margin="0,0,0,8" FontSize="12"
+                   Text="内容来自配置文件里的 Custom.xaml，用记事本改完保存，这里就会自动刷新。今天是 [日期]，现在 [时间]。" />
+        <local:MyHint Theme="Blue"
+                      Text="不想折腾就把这个文件删掉，下次启动它会重新生成一份；也可以在「设置 → 自定义内容」里换成别的文件。" />
+    </StackPanel>
+</local:MyCard>
+
+<local:MyCard Title="快捷操作" Margin="0,0,0,12">
+    <StackPanel Margin="16,12,16,14">
+        <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" FontSize="12" Foreground="#7C7C7C"
+                   Text="按钮的 EventType 决定点击后发生什么，EventData 是这件事需要的参数。" />
+        <StackPanel Orientation="Horizontal">
+            <local:MyButton Margin="0,0,8,0" Height="34" Padding="18,0,18,0" ColorType="Highlight"
+                            Text="启动游戏" EventType="启动游戏" />
+            <local:MyButton Margin="0,0,8,0" Height="34" Padding="18,0,18,0"
+                            Text="打开 MCMOD" EventType="打开网页" EventData="https://www.mcmod.cn/" />
+            <local:MyButton Margin="0,0,8,0" Height="34" Padding="18,0,18,0"
+                            Text="复制启动命令" EventType="复制文本"
+                            EventData="javaw -jar StarLaunch.jar" ToolTip="把这条命令复制到剪贴板" />
+            <local:MyButton Height="34" Padding="18,0,18,0" ColorType="Red"
+                            Text="清空启动日志" EventType="清理垃圾" />
+        </StackPanel>
+        <local:MyTextButton Margin="0,10,0,0" HorizontalAlignment="Center"
+                            Text="点这里试试弹窗 →" EventType="弹出窗口"
+                            EventData="你好|这是一个由 Custom.xaml 里 EventType=&quot;弹出窗口&quot; 触发的对话框。" />
+    </StackPanel>
+</local:MyCard>
+
+<local:MyCard Title="常用链接" Margin="0,0,0,12" CanSwap="True" IsSwapped="False">
+    <StackPanel Margin="16,8,16,12">
+        <local:MyListItem Margin="0,2,0,4" Title="Minecraft Wiki" Info="中文维基百科，查方块和机制最方便"
+                          EventType="打开网页" EventData="https://zh.minecraft.wiki/" Type="Clickable" />
+        <local:MyListItem Margin="0,2,0,4" Title="PCL 帮助文档" Info="这个文件格式的官方说明"
+                          EventType="打开网页" EventData="https://help.himcb.top/" Type="Clickable" />
+        <local:MyListItem Margin="0,2,0,4" Title="打开游戏文件夹" Info="启动器同级的 .minecraft"
+                          EventType="打开文件夹" EventData=".minecraft" Type="Clickable" />
+    </StackPanel>
+</local:MyCard>
+
+<local:MyCard Title="进阶：变量与折叠" Margin="0,0,0,12" CanSwap="True" IsSwapped="{variable:TutorialCardSwap:True}">
+    <StackPanel Margin="16,8,16,12">
+        <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" FontSize="12"
+                   Text="点下面的按钮会修改变量，卡片和文字跟着变化——和 PCL 的 {variable:名字:默认值} 一个用法。" />
+        <local:MyButton Height="34" Padding="18,0,18,0" HorizontalAlignment="Left" ColorType="Highlight"
+                        Text="展开上面的卡片" Visibility="{variable:TutorialShow:Visible}">
+            <local:CustomEventService.Events>
+                <local:CustomEventCollection>
+                    <local:CustomEvent Type="修改变量" Data="TutorialCardSwap|False|-" />
+                    <local:CustomEvent Type="修改变量" Data="TutorialShow|Collapsed|-" />
+                    <local:CustomEvent Type="刷新页面" Data="-" />
+                </local:CustomEventCollection>
+            </local:CustomEventService.Events>
+        </local:MyButton>
+        <local:MyTextButton HorizontalAlignment="Left" Margin="0,6,0,0"
+                            Text="恢复默认"
+                            EventType="修改变量" EventData="TutorialCardSwap|True|重新折叠" />
+    </StackPanel>
+</local:MyCard>

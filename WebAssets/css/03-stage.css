@@ -1,0 +1,97 @@
+/* ════════════════════════════════════════════════════════════════
+   5. 舞台与页面骨架
+   ════════════════════════════════════════════════════════════════ */
+.stage {
+    flex: 1;
+    min-width: 0;
+    position: relative; /* 页面切换时旧页要能绝对定位成残影图层 */
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.stage::-webkit-scrollbar { width: 0; height: 0; }
+
+.view { display: none; }
+
+/* 页面切换：新页从导航方向滑入，旧页作为残影图层反向滑出。
+   --slide-dir 由 app.js 按路由顺序写入（1 = 往后翻，-1 = 往前翻）。 */
+.view.is-active {
+    display: block;
+    animation: view-slide-in 360ms var(--ease) backwards;
+}
+
+.view.is-leaving {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 0;
+    pointer-events: none;
+    /* 残影不参与滚动高度的撑高：裁到一屏高，否则切换那 260ms 页面会「变长」 */
+    max-height: 100%;
+    overflow: hidden;
+    animation: view-slide-out 260ms var(--ease) forwards;
+}
+
+@keyframes view-slide-in {
+    from { opacity: 0; transform: translateX(calc(var(--slide-dir, 1) * 30px)); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes view-slide-out {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(calc(var(--slide-dir, 1) * -30px)); }
+}
+
+/* 入场动画：滑块本身已经在横移，区块就从更小的位移开始，避免两段运动打架 */
+.view.is-active .page-head,
+.view.is-active .hero,
+.view.is-active .slab,
+.view.is-active .panel,
+.view.is-active .set-head,
+.view.is-active .set-block,
+.view.is-active .about,
+.view.is-active .tip {
+    animation: rise-in 420ms var(--ease) backwards;
+    animation-delay: calc(var(--stagger, 0) * 32ms);
+}
+
+@keyframes rise-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes view-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+.page { padding: 6px 4px 24px; }
+
+.page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.page-head h1 {
+    font-size: var(--fs-h1);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+}
+
+.page-head p {
+    margin-top: 5px;
+    max-width: 62ch;
+    font-size: var(--fs-sm);
+    color: var(--text-2);
+}
+
+.page-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
