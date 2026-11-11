@@ -3,6 +3,11 @@
 
 这个目录只放需要编进程序集的静态资源（例如随 exe 分发的默认图片）。
 
+品牌图标
+--------
+标题栏和「关于」页的 Logo 使用 assets/mascot-fly.png。
+文件不存在时，界面会自动回退到内联的星形图标。
+
 用户壁纸在项目根目录的 wallpapers/，运行时由宿主扫描；
 exe 同级目录不可写时退回 %LOCALAPPDATA%\StarLaunch\wallpapers。
 在设置页点「打开文件夹」即可直接往里放 jpg / png / webp / gif / bmp / avif。

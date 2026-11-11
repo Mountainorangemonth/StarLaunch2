@@ -115,12 +115,31 @@
         }
     ];
 
-    const QUOTES = [
+const QUOTES = [
         '方块堆成星海，夜晚就有了归处。',
         '先挖三块木头，再去想远方。',
         '把家建在出生点，把梦建在云端。',
         '世界没有存档，但今天可以重来。',
-        '一间木屋，一盏南瓜灯，就够了。'
+        '一间木屋，一盏南瓜灯，就够了。',
+        '末影人困在矿车里，瞬移就成了一种回忆。',
+        '恶魂的火球可以打回去，连它自己也会受伤。',
+        '末影人的低语，是人类一句“Hello”被放慢打乱。',
+        '金镐挖得比谁都快，却挖不动金和铁。',
+        '一桶岩浆烧一百件物品，沉默地烧很久。',
+        '向日葵永远朝东，南瓜藤永远朝西北。',
+        '末影箱上放TNT，爆炸只带走它自己。',
+        '潮涌核心在水下睁开眼，寻找亡灵，再闭上。',
+        '美西螈咬一口怪物，你的血条悄悄回来一点。',
+        '牛都是母的，所以每一头都能挤奶。',
+        '蘑菇岛的怪从不生成，地表和地底都安静。',
+        '钻石最早的文件名，叫做绿宝石。',
+        '把兔子命名为Toast，它就有了黑白相间的皮毛。',
+        '把卫道士命名为Johnny，它见谁打谁。',
+        '老版本的海绵吸掉5×5×5的水，像一块沉默的雨。',
+        '仙人掌可以种在水里，但不能挨着另一棵仙人掌。',
+        '南瓜自然生成的概率，比钻石还低。',
+        '按住Shift放箱子，两个箱子就永远不会合并。',
+        '雪傀儡的南瓜头，可以用剪刀轻轻摘下来。'
     ];
 
     const ROUTES = {
@@ -129,24 +148,6 @@
         download: { crumb: '下载', title: '下载 · StarLaunch' },
         settings: { crumb: '设置', title: '设置 · StarLaunch' }
     };
-
-    const DOWNLOADS = [
-        { id: 'mc-1214', cat: 'version', name: 'Minecraft 1.21.4', sub: '冬季更新 · 正式版 · 2024-12-03 · Java 21', size: '386 MB', tile: '1.21.4', tone: 'a', badge: '最新' },
-        { id: 'mc-1211', cat: 'version', name: 'Minecraft 1.21.1', sub: '正式版 · 2024-08-08 · Java 21', size: '372 MB', tile: '1.21.1', tone: 'b' },
-        { id: 'mc-1206', cat: 'version', name: 'Minecraft 1.20.6', sub: '正式版 · 2024-04-29 · Java 21', size: '358 MB', tile: '1.20.6', tone: 'c' },
-        { id: 'mc-1201', cat: 'version', name: 'Minecraft 1.20.1', sub: '模组黄金版 · 2023-06-12 · Java 17', size: '312 MB', tile: '1.20.1', tone: 'd', badge: '热门' },
-        { id: 'mc-1192', cat: 'version', name: 'Minecraft 1.19.2', sub: '稳定版 · 2022-08-05 · Java 17', size: '298 MB', tile: '1.19.2', tone: 'e' },
-        { id: 'mc-1165', cat: 'version', name: 'Minecraft 1.16.5', sub: '经典版 · 2021-01-15 · Java 11', size: '264 MB', tile: '1.16.5', tone: 'f' },
-        { id: 'pack-winter', cat: 'modpack', name: '冬夜生存', sub: 'NeoForge 1.20.4 · 82 个模组', size: '1.8 GB', tile: '冬夜', tone: 'a', badge: '推荐' },
-        { id: 'pack-sky', cat: 'modpack', name: '天空工厂', sub: 'Fabric 1.21.1 · 空岛整合 · 46 个模组', size: '960 MB', tile: '天空', tone: 'b' },
-        { id: 'pack-star', cat: 'modpack', name: '星辉旅人', sub: 'Forge 1.19.2 · 冒险整合 · 128 个模组', size: '2.4 GB', tile: '星辉', tone: 'd' },
-        { id: 'mod-sodium', cat: 'mod', name: 'Sodium 钠', sub: 'Fabric 1.21.x · 渲染优化', size: '1.2 MB', tile: 'Na', tone: 'c' },
-        { id: 'mod-iris', cat: 'mod', name: 'Iris Shaders', sub: 'Fabric 1.21.x · 光影加载', size: '6.8 MB', tile: 'Iris', tone: 'e' },
-        { id: 'mod-jei', cat: 'mod', name: 'JEI 物品管理器', sub: 'Forge 1.20.x · 实用工具', size: '3.4 MB', tile: 'JEI', tone: 'a' },
-        { id: 'mod-create', cat: 'mod', name: 'Create 机械动力', sub: 'Forge 1.20.1 · 科技模组', size: '18.6 MB', tile: 'C+', tone: 'f' },
-        { id: 'rp-dawn', cat: 'resource', name: '晨曦 128×', sub: '通用 · 1.20+ · 清新光影向', size: '64 MB', tile: '晨', tone: 'e' },
-        { id: 'rp-mint', cat: 'resource', name: '薄荷 64×', sub: '通用 · 1.20+ · 清爽低配向', size: '28 MB', tile: '薄荷', tone: 'c' }
-    ];
 
     const QUEUE_SEED = [
         { id: 'q-1214', name: 'Minecraft 1.21.4', phase: 'assets · 12.4 MB/s', eta: '约 2 分钟', progress: 68, state: 'running' },
@@ -311,8 +312,7 @@
         activeId: 'winter', instFilter: 'all', dlCat: 'version', source: 'BMCLAPI', setTab: 'appearance'
     });
     const launchPrefs = readStore(STORE.launchPrefs, {
-        mem: 8, updater: true, minimize: false, concurrency: 8, cleanCache: true,
-        launcherUpdate: true, rememberWindow: true, tray: false, winStyle: 'right',
+        mem: 8, updater: true, minimize: false, concurrency: 8,
         isolation: 'all', windowTitle: '', customInfo: 'StarLaunch',
         visibility: 'unchanged', priority: 'normal',
         windowMode: 'custom', winW: 854, winH: 480,
@@ -438,7 +438,7 @@
 
     function staggerView(view) {
         if (!view) return;
-        const blocks = $$('.page-head, .hero, .slab, .panel, .feature, .set-head, .set-block, .about, .tip', view);
+        const blocks = $$('.page-head, .hero, .slab, .panel, .set-head, .set-block, .about, .tip', view);
         blocks.forEach((el, index) => {
             el.style.setProperty('--stagger', String(Math.min(index, 7)));
         });
@@ -1249,8 +1249,7 @@
        下载
        ----------------------------------------------------------------- */
     function findDownloadItem(id) {
-        return DOWNLOADS.find((entry) => entry.id === id) ||
-            VERSIONS.find((entry) => entry.id === id) ||
+        return VERSIONS.find((entry) => entry.id === id) ||
             MODS.find((entry) => entry.id === id) ||
             MODPACKS.find((entry) => entry.id === id) ||
             RESOURCES.find((entry) => entry.id === id) ||

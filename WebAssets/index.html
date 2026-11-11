@@ -19,9 +19,6 @@
     ============================================================
 -->
 <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-    <symbol id="i-spark" viewBox="0 0 24 24">
-        <path d="M12 2.8c.9 5.8 4.4 9.3 10.2 10.2-5.8.9-9.3 4.4-10.2 10.2C11.1 17.4 7.6 13.9 1.8 13 7.6 12.1 11.1 8.6 12 2.8Z" fill="currentColor" stroke="none"/>
-    </symbol>
     <symbol id="i-home" viewBox="0 0 24 24">
         <path d="M4 10.3 12 4l8 6.3V19a1.7 1.7 0 0 1-1.7 1.7h-3.9v-5.9H9.6v5.9H5.7A1.7 1.7 0 0 1 4 19Z"/>
     </symbol>
@@ -52,7 +49,6 @@
     </symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.6 11.4a7.7 7.7 0 1 0-1.5 5.4"/><path d="M19.8 5.2v5.4h-5.4"/></symbol>
     <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.7 7.5A1.8 1.8 0 0 1 5.5 5.7h3.2l1.8 2.1h8a1.8 1.8 0 0 1 1.8 1.8v7.9a1.8 1.8 0 0 1-1.8 1.8H5.5a1.8 1.8 0 0 1-1.8-1.8Z"/></symbol>
-    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.6" y="8.6" width="10" height="10" rx="2.2"/><path d="M15.4 8.4V6.8a1.8 1.8 0 0 0-1.8-1.8H6.8A1.8 1.8 0 0 0 5 6.8v6.8a1.8 1.8 0 0 0 1.8 1.8h1.6"/></symbol>
     <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.5" fill="currentColor" stroke="none"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5.2 12.5 4.5 4.5 9.1-9.4"/></symbol>
     <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.6 19 6.2v5.2c0 4.3-2.9 7.3-7 8.8-4.1-1.5-7-4.5-7-8.8V6.2Z"/><path d="m8.9 11.9 2.1 2.2 4.3-4.4"/></symbol>
@@ -89,7 +85,9 @@
          ======================================================== -->
     <header class="custom-titlebar" id="titlebar">
         <div class="tb-brand">
-            <span class="tb-logo"><svg class="icon icon--fill" aria-hidden="true"><use href="#i-spark"/></svg></span>
+            <span class="tb-logo tb-logo--brand">
+                <img src="assets/mascot-fly.png" alt="" draggable="false">
+            </span>
             <span class="tb-name">StarLaunch</span>
             <span class="tb-crumb" id="tbCrumb">启动</span>
         </div>
@@ -188,7 +186,14 @@
                             <span class="orb orb--a"></span>
                             <span class="orb orb--b"></span>
                             <span class="orb orb--c"></span>
-                            <svg class="hero-cube"><use href="#i-cube"/></svg>
+                            <!--
+                                主视觉：睡在云上的吉祥物。
+                                用 <img> 而不是内联 SVG —— 线稿的白色底和线条颜色
+                                都烤在图片里，主题换色 / 切明暗都不会改变角色本身。
+                                想换角色，替换 assets/mascot-sleep.png 即可。
+                            -->
+                            <img class="hero-mascot" src="assets/mascot-sleep.png"
+                                 width="640" height="433" alt="" draggable="false">
                         </div>
                     </header>
 
@@ -881,8 +886,8 @@
                                 <div class="set-row">
                                     <div class="set-label">内存分配<small>自动配置会按可用内存推算</small></div>
                                     <div class="radio-group" role="radiogroup" aria-label="内存分配方式">
-                                        <label class="radio"><input type="radio" name="launchMemMode" id="launchMemAuto" value="auto"><span>自动配置</span></label>
-                                        <label class="radio"><input type="radio" name="launchMemMode" id="launchMemCustom" value="custom"><span>自定义</span></label>
+                                        <label class="radio-opt"><input type="radio" name="launchMemMode" id="launchMemAuto" value="auto"><span>自动配置</span></label>
+                                        <label class="radio-opt"><input type="radio" name="launchMemMode" id="launchMemCustom" value="custom"><span>自定义</span></label>
                                     </div>
                                 </div>
                                 <div class="set-row set-row--stack">
@@ -1089,11 +1094,13 @@
                         <section class="set-panel" data-set-panel="about" aria-labelledby="setAboutTitle">
                             <header class="set-head">
                                 <h2 id="setAboutTitle">关于</h2>
-                                <p>界面完全离线：图标是内联 SVG，颜色在本地由 MCU 计算。</p>
+                                <p>界面完全离线：图标与配色都在本地处理，不依赖网络。</p>
                             </header>
                             <div class="about">
                                 <div class="about-brand">
-                                    <span class="tb-logo tb-logo--lg"><svg class="icon icon--fill"><use href="#i-spark"/></svg></span>
+                                    <span class="tb-logo tb-logo--lg tb-logo--brand">
+                                        <img src="assets/mascot-fly.png" alt="" draggable="false">
+                                    </span>
                                     <div>
                                         <b>StarLaunch</b>
                                         <span>v1.0.0 · WebAssets UI</span>
