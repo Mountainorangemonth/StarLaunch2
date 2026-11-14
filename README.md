@@ -349,6 +349,18 @@ XAML → 响应式。`WebAssets/style.css` 只剩一个空壳（旧路径兼容�
 这种互相引用不会拿到 `undefined`。新增模块时在 `index.html` 里按依赖顺序加 `<script>`，
 再在 `app.js` 的 `bind()` 里挂上事件即可。
 
+界面上的小交互尽量走全局委托，别一个按钮写一个 `addEventListener`：
+
+| 属性 | 写在按钮上就有的效果 | 处理位置 |
+| --- | --- | --- |
+| `data-nav="home"` / `data-nav-link="…"` | 切页面 | `15-events.js` |
+| `data-toast="一句话"` | 弹一条 toast（纯提示，不做别的事） | `15-events.js` |
+| `data-open-url="https://…"` + `data-open-label="项目主页"` | 交给宿主用默认浏览器打开，成功后 toast「已打开项目主页」；浏览器预览里退回 `window.open` | `15-events.js` → `SL.host.openLocation` → `ShellLaunch` |
+| `data-copy-jvm` | 复制 `#launchJvmArgs` | `15-events.js` |
+
+「关于」里的**项目主页**用的就是 `data-open-url`，指向
+`https://github.com/Mountainorangemonth/StarLaunch2`；想换成别的链接改这一个属性即可。
+
 ## 版本与游戏文件夹
 
 ### 登记多个 `.minecraft`

@@ -20,6 +20,7 @@
     const startDownload = (...args) => downloadMod.startDownload(...args);
     const appearanceMod = SL.core.mod('appearance');
     const renderWallpaperUI = (...args) => appearanceMod.renderWallpaperUI(...args);
+    const hostMod = SL.core.mod('host');
 
     /* 事件绑定 */
     function bindGlobalClicks() {
@@ -39,6 +40,25 @@
             }
             const toastBtn = event.target.closest('[data-toast]');
             if (toastBtn) toast(toastBtn.dataset.toast);
+
+            /*
+             * 打开外部链接（「关于」里的项目主页这类按钮）。
+             * 宿主在的时候走 SL.host.openLocation → open-external → ShellLaunch，
+             * 和公告里的链接同一条路：成功弹「已打开某某」，失败弹原因浮层。
+             * 纯浏览器预览没有宿主，退回 window.open 开新标签页。
+             */
+            const linkBtn = event.target.closest('[data-open-url]');
+            if (linkBtn) {
+                const url = linkBtn.dataset.openUrl || '';
+                const label = linkBtn.dataset.openLabel || '';
+                if (!url) return;
+                if (hostMod.hasHost && hostMod.hasHost()) {
+                    hostMod.openLocation('open-external', { url: url }, label);
+                } else {
+                    window.open(url, '_blank', 'noopener');
+                }
+                return;
+            }
 
             const copyJvm = event.target.closest('[data-copy-jvm]');
             if (copyJvm) {
