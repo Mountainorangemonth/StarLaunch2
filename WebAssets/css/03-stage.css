@@ -16,10 +16,15 @@
 .view { display: none; }
 
 /* 页面切换：新页从导航方向滑入，旧页作为残影图层反向滑出。
-   --slide-dir 由 app.js 按路由顺序写入（1 = 往后翻，-1 = 往前翻）。 */
+   --slide-dir 由 js/05-router.js 按路由顺序写入（1 = 往后翻，-1 = 往前翻）。
+   进入 320ms、退出 240ms：退出比进入短，收尾更利落；位移收到 22px，
+   1440 宽的窗口里不至于「整页横飞」。新页 z-index 抬一层，
+   往回翻页时残影不会盖住已经到位的页面。 */
 .view.is-active {
+    position: relative;
+    z-index: 1;
     display: block;
-    animation: view-slide-in 360ms var(--ease) backwards;
+    animation: view-slide-in var(--dur-view) var(--ease) backwards;
 }
 
 .view.is-leaving {
@@ -33,17 +38,17 @@
     /* 残影不参与滚动高度的撑高：裁到一屏高，否则切换那 260ms 页面会「变长」 */
     max-height: 100%;
     overflow: hidden;
-    animation: view-slide-out 260ms var(--ease) forwards;
+    animation: view-slide-out var(--dur-leave) var(--ease) forwards;
 }
 
 @keyframes view-slide-in {
-    from { opacity: 0; transform: translateX(calc(var(--slide-dir, 1) * 30px)); }
+    from { opacity: 0; transform: translateX(calc(var(--slide-dir, 1) * 22px)); }
     to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes view-slide-out {
     from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(calc(var(--slide-dir, 1) * -30px)); }
+    to { opacity: 0; transform: translateX(calc(var(--slide-dir, 1) * -22px)); }
 }
 
 /* 入场动画：滑块本身已经在横移，区块就从更小的位移开始，避免两段运动打架 */
@@ -55,8 +60,8 @@
 .view.is-active .set-block,
 .view.is-active .about,
 .view.is-active .tip {
-    animation: rise-in 420ms var(--ease) backwards;
-    animation-delay: calc(var(--stagger, 0) * 32ms);
+    animation: rise-in var(--rise) var(--ease) backwards;
+    animation-delay: calc(var(--stagger, 0) * var(--rise-step));
 }
 
 @keyframes rise-in {

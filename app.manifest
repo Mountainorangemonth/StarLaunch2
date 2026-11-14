@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--=====================================================================
+    StarLaunch · 应用程序清单
+    =====================================================================
+    这里决定「双击 exe 之后以什么身份运行」。当前是默认管理员：
+    requestedExecutionLevel = requireAdministrator，每次启动都由 UAC
+    接管，进程拿到的是完整管理员令牌。
+
+    改这一行之前要知道的两件事：
+      · 提权进程不能再驱动资源管理器（Windows 的限制），所以
+        Services\ShellLaunch.cs 里打开文件夹优先走 SHParseDisplayName，
+        最后那条 explorer.exe 的路在提权时会被跳过。
+      · WebView2 的运行时进程永远跑在普通权限下。在开了「管理员保护」
+        （Administrator Protection，26xxx 之后的内测版才有的功能）的系统
+        上，提权后的用户和普通用户不是同一个，网页内核可能因为读不到
+        用户数据目录而初始化失败。MainWindow 里对此有一条「以普通权限
+        重启」的自救援，见 Services\Elevation.cs。
+
+    想临时改回普通权限调试：把下面那行换成 level="asInvoker" 即可。
+    =====================================================================-->
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+
+  <assemblyIdentity version="1.0.0.0" name="StarLaunch.app" />
+
+  <!-- 默认管理员权限 -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <!-- 声明支持 Win10 / Win11，系统才会给完整的行为集（圆角、深色标题栏等） -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 / 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+    </application>
+  </compatibility>
+
+  <!-- 高 DPI：WPF 在 .NET Core 上默认就是 PerMonitorV2，这里显式写死，
+       避免换机器 / 换运行时版本时退回系统缩放导致整个界面糊掉 -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">permonitorv2,permonitor</dpiAwareness>
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
+
+</assembly>

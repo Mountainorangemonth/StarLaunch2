@@ -65,6 +65,20 @@
 
 .hero-greet { display: block; color: var(--text); opacity: 0.9; }
 
+/* 标题两行分先后落位：父级 .hero 已经整块抬起来了，这里只补字级别的错峰，
+   让「晚上好」先占住位置，名字随后跟上。 */
+.view.is-active .hero-greet,
+.view.is-active .hero-name {
+    animation: hero-line-in 480ms var(--ease) backwards;
+}
+
+.view.is-active .hero-name { animation-delay: 70ms; }
+
+@keyframes hero-line-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+}
+
 .hero-name {
     display: block;
     margin-top: 2px;
@@ -165,6 +179,15 @@
 .orb--b { width: 92px; height: 92px; right: 116px; top: 58px; background: rgba(var(--brand-rgb), 0.5); }
 .orb--c { width: 74px; height: 74px; right: 6px; bottom: 4px; background: var(--hero); }
 
+/* 视差：鼠标在主视觉上移动时，背景光斑走 9px、吉祥物走 16px，前后就分开了。
+   --px / --py 由 js/06-ui.js 写入（-1..1），只驱动独立的 translate 属性，
+   不和吉祥物自身的 mascot-float（transform 动画）打架。 */
+.hero-art .orb,
+.hero-mascot {
+    translate: calc(var(--px, 0) * 9px) calc(var(--py, 0) * 6px);
+    transition: translate 420ms var(--ease);
+}
+
 /*
  * 主视觉：睡在云上的吉祥物（原来是描边小立方体）。
  *
@@ -192,6 +215,9 @@
     filter: drop-shadow(0 10px 16px rgba(var(--shadow-rgb), 0.34))
             drop-shadow(0 0 1px rgba(var(--shadow-rgb), 0.28));
     animation: mascot-float 9s ease-in-out infinite alternate;
+    /* 前景比背景走得远，视差才有纵深 */
+    translate: calc(var(--px, 0) * 16px) calc(var(--py, 0) * 10px);
+    transition: translate 420ms var(--ease);
 }
 
 /* 衬底：人物身后一块收敛的深色光斑，解决"白底白墙看不清"。

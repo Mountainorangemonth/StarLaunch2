@@ -12,6 +12,9 @@
     const { ROUTES } = SL.data;
     const uiMod = SL.core.mod('ui');
     const closePopovers = (...args) => uiMod.closePopovers(...args);
+    const syncRailGlide = (...args) => {
+        if (typeof uiMod.syncRailGlide === 'function') uiMod.syncRailGlide(...args);
+    };
 
     /* -----------------------------------------------------------------
        路由
@@ -84,6 +87,8 @@
             if (active) btn.setAttribute('aria-current', 'page');
             else btn.removeAttribute('aria-current');
         });
+        // 导航的选中块同时滑过去，和高亮换页看起来是一件事
+        syncRailGlide();
         const crumb = $('#tbCrumb');
         if (crumb) crumb.textContent = route.crumb;
         document.title = route.title;

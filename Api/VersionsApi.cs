@@ -10,7 +10,6 @@
    =====================================================================*/
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Win32;
@@ -189,42 +188,67 @@ namespace StarLaunch
             }
         }
 
-        /// <summary>在资源管理器里打开某个已登记的文件夹；不传路径就打开当前文件夹。</summary>
-        private void OpenGameDir(string? path = null)
+        /// <summary>
+        /// 在资源管理器里打开某个已登记的文件夹；不传路径就打开当前文件夹。
+        /// 没登记、目录不在了都会带原因返回，网页会弹出来（以前是静默 return）。
+        /// </summary>
+        private ShellLaunchResult OpenGameDir(string? path = null)
         {
+            GameDirEntry? entry;
             try
             {
-                GameDirEntry? entry = string.IsNullOrWhiteSpace(path) ? GameDirs.Active() : GameDirs.Find(path);
-                if (entry == null || !Directory.Exists(entry.Path)) return;
-                OpenFolder(entry.Path);
+                entry = string.IsNullOrWhiteSpace(path) ? GameDirs.Active() : GameDirs.Find(path);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // 打不开资源管理器时静默忽略
+                return ShellLaunchResult.Failure(path, "读取游戏文件夹配置失败：" + ex.Message);
             }
+
+            if (entry == null)
+            {
+                return ShellLaunchResult.Failure(path, "这个文件夹不在列表里，可能已经被移除");
+            }
+            return ShellLaunch.OpenFolder(entry.Path);
         }
 
         /// <summary>只允许打开已登记文件夹之内的路径，网页传来的路径不当真。</summary>
-        private void OpenInstanceDir(string? path)
+        private ShellLaunchResult OpenInstanceDir(string? path)
         {
-            if (string.IsNullOrWhiteSpace(path)) return;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return ShellLaunchResult.Failure(string.Empty, "没有给出版本目录");
+            }
 
+            string full;
             try
             {
-                string full = Path.GetFullPath(path!);
-                if (!Directory.Exists(full)) return;
-
-                bool inside = GameDirs.ResolveAll().Any(entry =>
-                    string.Equals(full, entry.Path, StringComparison.OrdinalIgnoreCase) ||
-                    full.StartsWith(entry.Path + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-                if (!inside) return;
-
-                OpenFolder(full);
+                full = Path.GetFullPath(path!);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // 路径非法或不存在：忽略
+                return ShellLaunchResult.Failure(path, "路径无效：" + ex.Message);
             }
+
+            if (!Directory.Exists(full))
+            {
+                return ShellLaunchResult.Failure(full, "这个版本的目录不存在，可能已被移动或删除");
+            }
+
+            bool inside = GameDirs.ResolveAll().Any(entry => IsInside(full, entry.Path));
+            if (!inside)
+            {
+                return ShellLaunchResult.Failure(full, "这个目录不在登记的游戏文件夹里");
+            }
+            return ShellLaunch.OpenFolder(full);
+        }
+
+        /// <summary>判断 full 是不是 root 本身或它的子目录（盘符根目录也能正确比较）。</summary>
+        private static bool IsInside(string full, string root)
+        {
+            string trimmed = root.TrimEnd('\\', '/');
+            if (trimmed.Length == 0) return false;
+            if (string.Equals(full, trimmed, StringComparison.OrdinalIgnoreCase)) return true;
+            return full.StartsWith(trimmed + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -294,18 +318,6 @@ namespace StarLaunch
                 ["error"] = error,
                 ["message"] = message
             });
-        }
-
-        private static void OpenFolder(string path)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
-            }
-            catch (Exception)
-            {
-                // 没有可用的资源管理器时忽略
-            }
         }
 
     }

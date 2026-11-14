@@ -10,7 +10,8 @@
     transition: background-color 400ms var(--ease);
 }
 
-/* 氛围光：没有壁纸时它承担「被模糊的东西」，有壁纸时只做一层染色 */
+/* 氛围光：没有壁纸时它承担「被模糊的东西」；有壁纸时照片是不透明 cover，
+   会把它整层盖住，任何染色都看不见，所以有壁纸时直接停掉，省下一整层全屏合成 */
 .backdrop__ambient {
     position: absolute;
     inset: -12%;
@@ -25,7 +26,10 @@
     animation: aura-drift 46s ease-in-out infinite alternate;
 }
 
-.has-photo .backdrop__ambient { opacity: 0.34; }
+.has-photo .backdrop__ambient {
+    opacity: 0;
+    animation: none;
+}
 
 @keyframes aura-drift {
     from { transform: translate3d(-1.5%, -1%, 0) scale(1.02); }

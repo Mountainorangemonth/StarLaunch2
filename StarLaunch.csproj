@@ -7,6 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\favicon.ico</ApplicationIcon>
+    <!-- 默认管理员权限：清单里是 requireAdministrator，双击就会弹 UAC。
+         想改回普通权限只需改 app.manifest 里的 requestedExecutionLevel。 -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
 	<ItemGroup>

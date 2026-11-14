@@ -622,16 +622,14 @@
     const noticeOpenAuto = $('#noticeOpenAuto');
     if (noticeOpenAuto) {
         noticeOpenAuto.addEventListener('click', () => {
-            if (hostPost({ type: 'open-custom-home' })) return;
-            toast('只有启动器里才能直接打开 Custom.xaml', 'i-info');
+            hostMod.openLocation('open-custom-home', null, 'Custom.xaml');
         });
     }
 
     const noticeOpenAutoFolder = $('#noticeOpenAutoFolder');
     if (noticeOpenAutoFolder) {
         noticeOpenAutoFolder.addEventListener('click', () => {
-            if (hostPost({ type: 'open-custom-home-folder' })) return;
-            toast('只有启动器里才能打开配置文件夹', 'i-info');
+            hostMod.openLocation('open-custom-home-folder', null, '配置文件夹');
         });
     }
 

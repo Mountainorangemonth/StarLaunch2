@@ -5,8 +5,6 @@
    =====================================================================*/
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
 using StarLaunch.Services;
@@ -30,11 +28,11 @@ namespace StarLaunch
                 // 设置页“打开文件夹”按钮
                 if (type.GetString() == "open-wallpapers")
                 {
-                    OpenWallpaperFolder();
+                    RunOpen("wallpapers", ReadString(root, "id"), OpenWallpaperFolder);
                     return;
                 }
 
-                // 版本管理：游戏文件夹的增删与设置（多文件夹，PCL 式）
+                // 版本管理：游戏文件夹的增删与设置
                 switch (type.GetString())
                 {
                     case "add-game-dirs":
@@ -55,10 +53,12 @@ namespace StarLaunch
                         return;
                     case "open-game-dir":
                     case "open-folder":
-                        OpenGameDir(ReadString(root, "path"));
+                        RunOpen("game-dir", ReadString(root, "id"),
+                            () => OpenGameDir(ReadString(root, "path")));
                         return;
                     case "open-instance-dir":
-                        OpenInstanceDir(ReadString(root, "path"));
+                        RunOpen("instance-dir", ReadString(root, "id"),
+                            () => OpenInstanceDir(ReadString(root, "path")));
                         return;
                     case "import-modpack":
                         ImportModpack();
@@ -69,17 +69,18 @@ namespace StarLaunch
                 switch (type.GetString())
                 {
                     case "open-custom-home":
-                        OpenCustomHomeFile();
+                        RunOpen("custom-home", ReadString(root, "id"), OpenCustomHomeFile);
                         return;
                     case "open-custom-home-folder":
-                        OpenCustomHomeFolder();
+                        RunOpen("custom-home-folder", ReadString(root, "id"), OpenCustomHomeFolder);
                         return;
                     case "reset-custom-home":
                         ResetCustomHome();
                         return;
                     case "open-path":
                         // 自定义主页里的「打开文件 / 打开文件夹」事件
-                        OpenPath(ReadString(root, "path"), ReadString(root, "base"));
+                        RunOpen("path", ReadString(root, "id"),
+                            () => OpenPath(ReadString(root, "path"), ReadString(root, "base")));
                         return;
                 }
 
@@ -104,7 +105,15 @@ namespace StarLaunch
                 if (type.GetString() == "open-external" &&
                     root.TryGetProperty("url", out var urlElement))
                 {
-                    OpenExternal(urlElement.GetString());
+                    RunOpen("external", ReadString(root, "id"),
+                        () => OpenExternal(urlElement.GetString()));
+                    return;
+                }
+
+                // 网页那边发现「提权导致打不开」时，可以叫我们以普通权限重开一次
+                if (type.GetString() == "restart-as-user")
+                {
+                    RestartAsStandardUser();
                     return;
                 }
 
@@ -133,67 +142,44 @@ namespace StarLaunch
             {
                 // 无法解析的网页消息直接忽略
             }
+            catch (Exception ex)
+            {
+                // 动作执行中出了意外：回一条 host-error，网页用自己的浮层显示，
+                // 不再让它悄悄消失（宿主关掉了 DevTools，吞掉就真的查不到了）
+                PostPageMessage("host-error", new Dictionary<string, object?>
+                {
+                    ["title"] = "启动器内部出错了",
+                    ["message"] = ex.Message
+                });
+            }
         }
 
-        private void OpenExternal(string? url)
+        private static ShellLaunchResult OpenExternal(string? url)
         {
-            if (string.IsNullOrWhiteSpace(url)) return;
-            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return;
-            if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return;
-
-            try
+            if (string.IsNullOrWhiteSpace(url))
             {
-                Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+                return ShellLaunchResult.Failure(string.Empty, "没有给出链接");
             }
-            catch
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
-                // 没有可用的默认浏览器时忽略
+                return ShellLaunchResult.Failure(url, "只允许打开 http / https 链接");
             }
+            return ShellLaunch.OpenUrl(uri.AbsoluteUri);
         }
 
         /// <summary>
         /// 打开任意路径或命令，供自定义主页的「打开文件 / 打开文件夹 / 下载文件」事件使用。
-        /// 相对路径按 Custom.xaml 所在目录解析（和 PCL 一样），环境变量会展开。
-        /// 链接仍然只允许 http/https。
+        /// 相对路径按 Custom.xaml 所在目录解析（和 PCL 一样），环境变量会展开，链接交给默认浏览器。
         /// </summary>
-        private void OpenPath(string? raw, string? basePath)
+        private static ShellLaunchResult OpenPath(string? raw, string? basePath)
         {
-            if (string.IsNullOrWhiteSpace(raw)) return;
-            string path = raw!.Trim().Trim('"');
-
-            if (Uri.TryCreate(path, UriKind.Absolute, out var uri) &&
-                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            if (string.IsNullOrWhiteSpace(raw))
             {
-                OpenExternal(uri.AbsoluteUri);
-                return;
+                return ShellLaunchResult.Failure(string.Empty, "没有给出要打开的路径");
             }
-
-            try
-            {
-                path = Environment.ExpandEnvironmentVariables(path);
-
-                // 相对路径：先看 Custom.xaml 旁边，再退回启动器目录
-                if (!Path.IsPathRooted(path))
-                {
-                    string root = string.IsNullOrWhiteSpace(basePath) ? CustomHome.Folder : basePath!;
-                    string candidate = Path.Combine(root, path);
-                    if (File.Exists(candidate) || Directory.Exists(candidate))
-                    {
-                        path = candidate;
-                    }
-                    else
-                    {
-                        string fallback = Path.Combine(AppContext.BaseDirectory, path);
-                        if (File.Exists(fallback) || Directory.Exists(fallback)) path = fallback;
-                    }
-                }
-
-                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-            }
-            catch
-            {
-                // 路径不存在或没有关联程序：网页端已经给过提示
-            }
+            string root = string.IsNullOrWhiteSpace(basePath) ? CustomHome.Folder : basePath!;
+            return ShellLaunch.Open(raw, root);
         }
 
         /// <summary>取消息里的字符串字段，类型不对或不存在就返回 null。</summary>
@@ -202,6 +188,57 @@ namespace StarLaunch
             return root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
                 ? value.GetString()
                 : null;
+        }
+
+        /// <summary>
+        /// 执行一次「打开位置」的动作并把结果回给网页。
+        /// 网页带着 id 来，回包原样带回，它据此知道自己等的是哪一次（超时也能对上号）。
+        /// 这里兜住所有异常：打开失败只是失败，不该让整条消息通道炸掉。
+        /// </summary>
+        private void RunOpen(string action, string? id, Func<ShellLaunchResult> run)
+        {
+            ShellLaunchResult result;
+            try
+            {
+                result = run();
+            }
+            catch (Exception ex)
+            {
+                result = ShellLaunchResult.Failure(string.Empty, ex.Message);
+            }
+
+            PostPageMessage("open-result", new Dictionary<string, object?>
+            {
+                ["id"] = id,
+                ["action"] = action,
+                ["ok"] = result.Ok,
+                ["path"] = result.Path,
+                ["folder"] = result.Folder,
+                ["error"] = result.Error,
+                // 提权状态下打不开多半是「Windows 不允许提权进程驱动资源管理器」，
+                // 网页据此把提示里的「以普通权限重启」做成能点的按钮
+                ["elevated"] = ShellLaunch.IsElevated()
+            });
+        }
+
+        /// <summary>
+        /// 以普通权限重启（默认管理员权限下的逃生门）：新实例起来后关掉当前窗口。
+        /// 先回包再退出，让网页有机会把「正在重启」画出来。
+        /// </summary>
+        private async void RestartAsStandardUser()
+        {
+            ElevationResult result = Elevation.RestartAsStandardUser();
+
+            PostPageMessage("restart-result", new Dictionary<string, object?>
+            {
+                ["ok"] = result.Ok,
+                ["error"] = result.Error
+            });
+
+            if (!result.Ok) return;
+
+            await System.Threading.Tasks.Task.Delay(400);
+            Close();
         }
 
         private void PostPageMessage(string messageType, Dictionary<string, object?> payload)

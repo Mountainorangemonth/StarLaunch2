@@ -342,13 +342,8 @@
     const wallpaperOpen = $('#wallpaperOpen');
     if (wallpaperOpen) {
         wallpaperOpen.addEventListener('click', () => {
-            const webview = window.chrome && window.chrome.webview;
-            if (webview && typeof webview.postMessage === 'function') {
-                webview.postMessage({ type: 'open-wallpapers' });
-                toast('已打开壁纸文件夹', 'i-folder');
-            } else {
-                toast('请通过 StarLaunch 宿主打开壁纸文件夹', 'i-info');
-            }
+            // 打开成功 / 失败都由宿主回执决定提示，这里不再抢先 toast
+            SL.core.mod('host').openLocation('open-wallpapers', null, '壁纸文件夹');
         });
     }
 
@@ -361,6 +356,11 @@
                 else toast('没有读取到壁纸文件夹，请通过宿主运行', 'i-info');
             });
         });
+    }
+
+    const wallpaperToggle = $('#wallpaperToggle');
+    if (wallpaperToggle) {
+        wallpaperToggle.addEventListener('click', () => appearanceMod.toggleWallpaperFold());
     }
 
     const wpRotate = $('#wpRotateSwitch');

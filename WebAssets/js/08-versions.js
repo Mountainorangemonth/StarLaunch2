@@ -13,6 +13,7 @@
     const hostMod = SL.core.mod('host');
     const hasHost = (...args) => hostMod.hasHost(...args);
     const hostPost = (...args) => hostMod.hostPost(...args);
+    const openLocation = (...args) => hostMod.openLocation(...args);
     const uiMod = SL.core.mod('ui');
     const toast = (...args) => uiMod.toast(...args);
     const homeMod = SL.core.mod('home');
@@ -508,12 +509,15 @@
         if (openInstDir) {
             openInstDir.addEventListener('click', () => {
                 const inst = activeInstance();
-                if (!inst.path) return;
-                hostPost({ type: 'open-instance-dir', path: inst.path });
+                if (!inst.path) {
+                    toast('这个版本还没有目录可以打开', 'i-info');
+                    return;
+                }
+                openLocation('open-instance-dir', { path: inst.path }, '版本文件夹');
             });
         }
         $$('[data-host-action="open-game-dir"]').forEach((btn) => {
-            btn.addEventListener('click', () => hostPost({ type: 'open-game-dir' }));
+            btn.addEventListener('click', () => openLocation('open-game-dir', null, '游戏文件夹'));
         });
 
     }

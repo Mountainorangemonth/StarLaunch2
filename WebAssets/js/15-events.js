@@ -102,6 +102,13 @@
                 });
             }
 
+            const wallpaperClear = event.target.closest('[data-wallpaper-clear]');
+            if (wallpaperClear) {
+                const cleared = window.StarTheme.clearWallpaper();
+                renderWallpaperUI();
+                toast(cleared ? '已关闭壁纸，只保留氛围光' : '当前没有壁纸', cleared ? 'i-image' : 'i-info');
+            }
+
             const wpModeBtn = event.target.closest('[data-wp-mode]');
             if (wpModeBtn) {
                 window.StarTheme.update({ wallpaperMode: wpModeBtn.dataset.wpMode });

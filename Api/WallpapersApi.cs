@@ -4,12 +4,12 @@
    从 MainWindow.xaml.cs 拆出来的 partial，字段和事件都在主文件里。
    =====================================================================*/
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
+using StarLaunch.Services;
 
 namespace StarLaunch
 {
@@ -44,20 +44,13 @@ namespace StarLaunch
             }
         }
 
-        private void OpenWallpaperFolder()
+        /// <summary>
+        /// 在资源管理器里打开壁纸目录。失败原因不再吞掉，
+        /// 由 WebMessages 回一条 open-result 给网页，用网页自己的浮层显示。
+        /// </summary>
+        private ShellLaunchResult OpenWallpaperFolder()
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = GetWallpaperFolder(),
-                    UseShellExecute = true
-                });
-            }
-            catch
-            {
-                // 资源管理器打不开时静默忽略，网页端已有提示
-            }
+            return ShellLaunch.OpenFolder(GetWallpaperFolder());
         }
 
         private static bool IsWallpaperImage(string path)

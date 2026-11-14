@@ -22,6 +22,89 @@
     let themeFrame = 0;
     let pendingThemePatch = null;
 
+    /* -----------------------------------------------------------------
+       壁纸库折叠
+       ----------------------------------------------------------------- */
+    const WP_FOLD_KEY = 'starlaunch.wallpaperLibraryOpen';
+    let wallpaperFoldOpen = null;
+
+    function readFoldPref() {
+        try {
+            return global.localStorage.getItem(WP_FOLD_KEY) === '1';
+        } catch (err) {
+            return false;
+        }
+    }
+
+    let foldTimer = 0;
+
+    /* 折叠态同步到 DOM：aria-expanded、按钮文案、inert（收起后不再被 Tab 聚焦） */
+    function syncFoldChrome() {
+        const open = wallpaperFoldOpen === true;
+        const fold = $('#wallpaperFold');
+        const toggle = $('#wallpaperToggle');
+        const label = $('#wallpaperToggleText');
+        const count = (window.StarTheme && window.StarTheme.library ? window.StarTheme.library.length : 0);
+
+        if (fold) fold.inert = !open;
+        if (toggle) toggle.setAttribute('aria-expanded', String(open));
+        if (label) {
+            const prefix = open ? '收起壁纸库' : '展开壁纸库';
+            label.textContent = count ? prefix + ' · ' + count + ' 张' : prefix;
+        }
+    }
+
+    /*
+     * 折叠动画用 Web Animations：CSS transition 在这里有时不生成（点按钮与脚本调用表现不一致），
+     * 而 animate() 每次都稳定播放。展开先量 inner.scrollHeight，播完交回 auto，壁纸库变多也不会被裁掉。
+     */
+    function applyWallpaperFold(open, options) {
+        const opts = options || {};
+        const fold = $('#wallpaperFold');
+        const inner = fold ? fold.querySelector('.wp-fold__inner') : null;
+
+        wallpaperFoldOpen = Boolean(open);
+
+        if (fold) {
+            global.clearTimeout(foldTimer);
+            const from = fold.getBoundingClientRect().height;
+            const target = wallpaperFoldOpen ? (inner ? inner.scrollHeight : 0) : 0;
+
+            if (fold._foldAnim) {
+                fold._foldAnim.cancel();
+                fold._foldAnim = null;
+            }
+
+            fold.classList.toggle('is-collapsed', !wallpaperFoldOpen);
+            fold.inert = !wallpaperFoldOpen;
+            fold.style.height = opts.snap ? (wallpaperFoldOpen ? 'auto' : '0px') : target + 'px';
+
+            if (!opts.snap && typeof fold.animate === 'function' && Math.abs(from - target) > 1) {
+                fold._foldAnim = fold.animate(
+                    [{ height: from + 'px' }, { height: target + 'px' }],
+                    { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                );
+            }
+
+            if (wallpaperFoldOpen && !opts.snap) {
+                foldTimer = global.setTimeout(() => {
+                    if (wallpaperFoldOpen) fold.style.height = 'auto';
+                }, 300);
+            }
+        }
+
+        syncFoldChrome();
+    }
+
+    function toggleWallpaperFold() {
+        applyWallpaperFold(!wallpaperFoldOpen);
+        try {
+            global.localStorage.setItem(WP_FOLD_KEY, wallpaperFoldOpen ? '1' : '0');
+        } catch (err) {
+            /* 本地存储不可用时只保留在内存里 */
+        }
+    }
+
     /*
      * 滑杆的 input 事件一帧可能触发多次。这里合并成一次主题更新，
      * 并且不写 localStorage；松手时再 persist()，避免拖动时反复序列化。
@@ -134,6 +217,8 @@
     }
 
     function renderWallpaperUI() {
+        if (wallpaperFoldOpen === null) applyWallpaperFold(readFoldPref(), { snap: true });
+
         const theme = window.StarTheme;
         if (!theme) return;
         const state = theme.state;
@@ -149,7 +234,12 @@
                         escapeHtml(state.libraryError || '壁纸文件夹里还没有图片。把 jpg / png / webp 放进去，再点“重新扫描”。') +
                     '</p>';
                 } else {
-                    grid.innerHTML = library.map((item) => {
+                    /* 「不使用壁纸」永远排第一：点它直接关掉当前壁纸，只留氛围光 */
+                    const noneTile = '<button class="wallpaper-item wallpaper-item--none' + (state.wallpaper ? '' : ' is-active') + '" type="button" role="option" aria-selected="' + (!state.wallpaper) + '" data-wallpaper-clear="1" title="不使用壁纸">' +
+                        '<i class="wallpaper-none-glyph" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg></i>' +
+                        '<span>不使用壁纸</span>' +
+                    '</button>';
+                    grid.innerHTML = noneTile + library.map((item) => {
                         const active = item.url === state.wallpaper;
                         return '<button class="wallpaper-item' + (active ? ' is-active' : '') + '" type="button" role="option" aria-selected="' + active + '" data-wallpaper="' + escapeHtml(item.url) + '" title="' + escapeHtml(item.name) + '">' +
                             '<img src="' + escapeHtml(item.url) + '" loading="lazy" decoding="async" alt="">' +
@@ -172,6 +262,8 @@
             btn.classList.toggle('is-active', active);
             btn.setAttribute('aria-pressed', String(active));
         });
+
+        if (wallpaperFoldOpen !== null) syncFoldChrome();
     }
 
     function bindAppearanceRange(inputSel, key, format) {
@@ -192,5 +284,5 @@
         });
     }
 
-    SL.appearance = Object.assign(SL.appearance || {}, { queueThemeUpdate, renderPalette, renderPaletteValues, renderWallpaperUI, bindAppearanceRange });
+    SL.appearance = Object.assign(SL.appearance || {}, { queueThemeUpdate, renderPalette, renderPaletteValues, renderWallpaperUI, bindAppearanceRange, applyWallpaperFold, toggleWallpaperFold });
 })(window);

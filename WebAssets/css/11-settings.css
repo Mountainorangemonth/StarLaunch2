@@ -445,6 +445,66 @@
     background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
 }
 
+/* 折叠：高度动画走 Web Animations（见 12-appearance.js），这里只负责裁切与初始收起 */
+.wp-fold {
+    overflow: hidden;
+}
+
+.wp-fold.is-collapsed { height: 0; }
+
+.wp-fold__inner { min-height: 0; }
+
+.wp-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.wp-toggle .icon {
+    width: 14px;
+    height: 14px;
+    transition: transform 240ms var(--ease);
+}
+
+.wp-toggle[aria-expanded="false"] .icon { transform: rotate(-90deg); }
+
+/* 「不使用壁纸」：和普通壁纸同一套骨架，用来直接关掉当前壁纸 */
+.wallpaper-item--none {
+    display: grid;
+    place-items: center;
+    background: rgba(var(--shadow-rgb), 0.05);
+}
+
+.wallpaper-none-glyph {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-bottom: 12px;
+    border-radius: 50%;
+    background: rgba(var(--shadow-rgb), 0.08);
+    color: var(--text-2);
+    font-style: normal;
+}
+
+.wallpaper-none-glyph::after {
+    content: "";
+    position: absolute;
+    width: 24px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    transform: rotate(-45deg);
+}
+
+.wallpaper-none-glyph .icon { width: 17px; height: 17px; }
+
+.wallpaper-item--none.is-active .wallpaper-none-glyph {
+    background: var(--brand);
+    color: #fff;
+}
+
 .wallpaper-empty {
     grid-column: 1 / -1;
     padding: 16px 12px;

@@ -87,6 +87,26 @@
     box-shadow: 0 0 calc(6px + 14px * var(--glow)) rgba(var(--brand-rgb), calc(var(--glow) * 0.9));
 }
 
+/* 入场：柱子从底部依次长出来，和面板自身的抬升错开一点。
+   高度变化（--h 改动）仍走上面的 height 过渡，两者不冲突。 */
+.view.is-active .week-chart span {
+    transform-origin: bottom;
+    animation: bar-grow 520ms var(--ease) backwards;
+}
+
+.view.is-active .week-chart span:nth-child(1) { animation-delay: 40ms; }
+.view.is-active .week-chart span:nth-child(2) { animation-delay: 80ms; }
+.view.is-active .week-chart span:nth-child(3) { animation-delay: 120ms; }
+.view.is-active .week-chart span:nth-child(4) { animation-delay: 160ms; }
+.view.is-active .week-chart span:nth-child(5) { animation-delay: 200ms; }
+.view.is-active .week-chart span:nth-child(6) { animation-delay: 240ms; }
+.view.is-active .week-chart span:nth-child(7) { animation-delay: 280ms; }
+
+@keyframes bar-grow {
+    from { transform: scaleY(0); opacity: 0.35; }
+    to { transform: none; opacity: 1; }
+}
+
 .week-chart span:hover { filter: brightness(1.06); }
 
 .week-days {

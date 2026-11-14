@@ -146,6 +146,8 @@
 }
 
 .rail {
+    position: relative; /* .rail-glide 以它为准做绝对定位 */
+    isolation: isolate;
     flex: none;
     display: flex;
     flex-direction: column;
@@ -168,8 +170,53 @@
     }
 }
 
+/* 选中高亮：整个导航只有这一块「药丸」，换页时从上一项滑到下一项，
+   而不是两项各淡入淡出一遍。位置由 js/06-ui.js 的 syncRailGlide()
+   量出来写进 --glide-y / --glide-h，位移只走 transform，不碰 layout。 */
+.rail-glide {
+    position: absolute;
+    z-index: 0;
+    left: 8px;
+    right: 8px;
+    top: 0;
+    height: var(--glide-h, 0px);
+    border-radius: var(--r-sm);
+    background: var(--selected);
+    box-shadow:
+        inset 0 1px 0 var(--specular),
+        0 0 calc(6px + 16px * var(--glow)) rgba(var(--brand-rgb), calc(var(--glow) * 0.5));
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, var(--glide-y, 0px), 0);
+    transition:
+        transform 340ms var(--ease-spring),
+        height 200ms var(--ease),
+        background-color var(--dur) var(--ease),
+        opacity 180ms ease;
+}
+
+/* 左边那道小竖条长在药丸上，跟着一起走，不用每项各养一根 */
+.rail-glide::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    width: 3px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--brand);
+    transform: translateY(-50%);
+}
+
+/* 第一帧量好位置后再显形，否则开场会从第 1 项弹到当前项 */
+.rail.is-glide-ready .rail-glide { opacity: 1; }
+
+/* 首帧定位：关掉过渡，让药丸一帧到位 */
+.rail.is-glide-snap .rail-glide { transition: none; }
+
 .rail-item {
     position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -188,30 +235,20 @@
 .rail-item .icon { width: 19px; height: 19px; }
 .rail-label { font-size: 10.5px; letter-spacing: 0.02em; }
 
-.rail-indicator {
-    position: absolute;
-    left: 2px;
-    top: 50%;
-    width: 3px;
-    height: 0;
-    border-radius: 999px;
-    background: var(--brand);
-    transform: translateY(-50%);
-    transition: height 260ms var(--ease);
-}
-
 .rail-item:hover { color: var(--text); background: rgba(var(--brand-rgb), 0.08); }
 .rail-item:active { transform: scale(0.94); }
 
+/* 底色搬到 .rail-glide 上，这里只换前景色 */
 .rail-item.is-active {
     color: var(--on-brand-container);
-    background: var(--selected);
-    box-shadow:
-        inset 0 1px 0 var(--specular),
-        0 0 calc(6px + 16px * var(--glow)) rgba(var(--brand-rgb), calc(var(--glow) * 0.5));
+    background: transparent;
 }
 
-.rail-item.is-active .rail-indicator { height: 20px; }
+.rail-item .icon { transition: transform 280ms var(--ease-spring); }
+.rail-item.is-active .icon { transform: translateY(-0.5px) scale(1.08); }
+
+.rail-avatar .avatar { transition: transform 240ms var(--ease-spring); }
+.rail-avatar:hover .avatar { transform: scale(1.05); }
 
 .rail-foot { margin-top: auto; padding-top: 8px; width: 100%; }
 

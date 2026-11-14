@@ -20,6 +20,9 @@
        13-settings    启动选项
        14-folders     游戏文件夹列表（多 .minecraft）
        15-events      全局事件委托
+       16-xaml-parse  Custom.xaml 解析
+       17-xaml-view   Custom.xaml 渲染
+       18-select      下拉框外观（原生 select 换成自绘浮层）
    ===================================================================== */
 (function (global) {
     'use strict';
@@ -30,9 +33,14 @@
 
     /** 各模块自己的监听器在自己文件里，这里按原来的顺序串起来。 */
     function bind() {
+        // 先把 <select> 换成自绘下拉，后面的模块拿到的还是同一批 select，
+        // 只是 value / change 之外多了一层看得见的外观
+        SL.select.bindSelects();
+
         SL.events.bindGlobalClicks();
         window.addEventListener('hashchange', SL.router.applyRoute);
         window.addEventListener('resize', SL.ui.repositionPopovers);
+        window.addEventListener('resize', SL.ui.syncRailGlide);
 
         SL.clock.bindClock();
         SL.host.bindHost();
@@ -46,6 +54,7 @@
         SL.settings.bindSettings();
         SL.notice.bindNotice();
         SL.ui.bindQuote();
+        SL.ui.bindHeroParallax();
         SL.ui.bindIdle();
         SL.ui.bindKeyboard();
     }

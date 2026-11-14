@@ -192,6 +192,18 @@
 
 .btn-ghost:hover { background: var(--glass); }
 
+/*
+ * 危险操作按钮（删文件夹、清空之类的确定键）。
+ * 颜色从主题的 error 角色取，深色模式会跟着换成亮一点的红。
+ */
+.btn-danger {
+    background: var(--m3-error, #b3261e);
+    color: var(--m3-on-error, #ffffff);
+    box-shadow: 0 2px 8px rgba(var(--m3-error-rgb, 179, 38, 30), 0.26);
+}
+
+.btn-danger:hover { box-shadow: 0 4px 16px rgba(var(--m3-error-rgb, 179, 38, 30), 0.36); }
+
 .btn-sm { height: 30px; padding: 0 12px; font-size: var(--fs-xs); }
 .btn-block { width: 100%; }
 

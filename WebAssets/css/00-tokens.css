@@ -104,11 +104,19 @@ code,
     --titlebar-h: 46px;
     --gap: 16px;
 
-    /* 动效：和琉璃主题同一套缓动 */
+    /* 动效：和琉璃主题同一套缓动。
+       --dur* 只管状态变化（hover / 选中 / 换色）；
+       --dur-view / --dur-leave / --rise 是页面级动效，改的时候和
+       js/05-router.js 的 LEAVE_MS 一起看。 */
     --ease: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-spring: cubic-bezier(0.3, 1.35, 0.45, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
     --dur-fast: 130ms;
     --dur: 220ms;
+    --dur-view: 320ms;
+    --dur-leave: 240ms;
+    --rise: 320ms;
+    --rise-step: 24ms;
 
     /* 排版 */
     --fs-display: 38px;

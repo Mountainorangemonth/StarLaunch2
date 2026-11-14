@@ -51,6 +51,7 @@
         wallpaperMode: 'random',   // random | sequence
         wallpaperInterval: 5,      // 分钟
         wallpaperRotate: true,
+        wallpaperOff: false,       // 用户主动关了壁纸，刷新库以后也不要自动挑一张回来
         libraryError: ''
     };
 
@@ -102,8 +103,6 @@
     let wallpaperToken = 0;
     let lastSwitchAt = 0;
     let rotateTimer = 0;
-    let activeWallpaperLayer = 0;
-    let paintedWallpaperUrl = null;
 
     const seedCache = new Map();
 
@@ -139,6 +138,7 @@
                     if (['random', 'sequence'].indexOf(saved.wallpaperMode) !== -1) state.wallpaperMode = saved.wallpaperMode;
                     if ([1, 5, 10, 30].indexOf(Number(saved.wallpaperInterval)) !== -1) state.wallpaperInterval = Number(saved.wallpaperInterval);
                     state.wallpaperRotate = saved.wallpaperRotate !== false;
+                    state.wallpaperOff = saved.wallpaperOff === true;
                 }
             }
         } catch (err) {
@@ -171,7 +171,8 @@
                 wallpaperName: state.wallpaperName,
                 wallpaperMode: state.wallpaperMode,
                 wallpaperInterval: state.wallpaperInterval,
-                wallpaperRotate: state.wallpaperRotate
+                wallpaperRotate: state.wallpaperRotate,
+                wallpaperOff: state.wallpaperOff
             }));
             localStorage.removeItem(LEGACY_STORE_KEY);
         } catch (err) {
@@ -453,38 +454,143 @@
         return seed;
     }
 
-    function paintWallpaper() {
-        const backdrop = document.getElementById('backdrop');
-        const layers = [
+    /* -----------------------------------------------------------------
+       壁纸图层：新图叠在上层淡入，旧图保持不透明当底板
+       -----------------------------------------------------------------
+       两层同时反向过渡（新图 0→1、旧图 1→0）的话，中间两层的透明度加起来
+       小于 1，会透出 .backdrop 的底色，整块画面在切换途中发暗。
+       所以这里只让上层动：旧图全程不透明垫在下面，上层淡入到 1 之后再把
+       旧图瞬间收掉——那一刻它已经被完全盖住，看不出来。
+
+       时长要和 css/01-backdrop.css 里 .backdrop__photo 的 opacity 过渡一致。
+       ----------------------------------------------------------------- */
+    const WALLPAPER_FADE_MS = 700;
+
+    let photoBase = null;        // 底板：铺满、完全不透明
+    let photoTop = null;         // 上层：正在淡入
+    let photoUrl = null;         // 当前（或正在淡入的）图片地址
+    let photoSettleTimer = 0;    // 淡入完成后的收尾
+    let photoClearTimer = 0;     // 壁纸清空后真正抹掉 background-image
+
+    function photoLayers() {
+        return [
             document.getElementById('wallpaperLayer'),
             document.getElementById('wallpaperLayerNext')
         ].filter(Boolean);
+    }
+
+    function setLayerImage(layer, url) {
+        layer.style.backgroundImage = 'url("' + url.replace(/"/g, '\\"') + '")';
+    }
+
+    /** 瞬间收掉一层：只在它被上层完全盖住时调用，所以关掉过渡也没有视觉跳变。 */
+    function hidePhotoLayerNow(layer) {
+        if (!layer) return;
+        layer.style.transition = 'none';
+        layer.classList.remove('is-active');
+        layer.style.zIndex = '';
+        void layer.offsetWidth;
+        layer.style.transition = '';
+    }
+
+    function schedulePhotoSettle() {
+        if (photoSettleTimer) global.clearTimeout(photoSettleTimer);
+        photoSettleTimer = global.setTimeout(settlePhoto, WALLPAPER_FADE_MS + 60);
+    }
+
+    /** 上层已经完全不透明：把底板换成它，原来那层收干净，等下张图再轮换。 */
+    function settlePhoto() {
+        if (photoSettleTimer) {
+            global.clearTimeout(photoSettleTimer);
+            photoSettleTimer = 0;
+        }
+        if (!photoTop) return;
+        if (photoBase && photoBase !== photoTop) hidePhotoLayerNow(photoBase);
+        photoBase = photoTop;
+        photoBase.style.zIndex = '0';
+        photoTop = null;
+    }
+
+    function showWallpaperPhoto(url) {
+        const layers = photoLayers();
+        if (!layers.length) return;
+        if (photoUrl === url) return;
+
+        if (photoClearTimer) {
+            global.clearTimeout(photoClearTimer);
+            photoClearTimer = 0;
+        }
+
+        if (photoTop) {
+            // 上一张还在淡入（连着点了好几张）：直接换掉上层那张图，
+            // 透明度接着往上走，不重置成 0 重来，中间也不会叠出第二张半透明的图。
+            setLayerImage(photoTop, url);
+            photoUrl = url;
+            schedulePhotoSettle();
+            return;
+        }
+
+        let top;
+        if (photoBase) {
+            top = layers.filter((layer) => layer !== photoBase)[0] || photoBase;
+            photoBase.style.zIndex = '0';
+        } else {
+            // 第一次铺图，或上一张刚淡出完：只留一层，其余的立刻收干净
+            top = layers[0];
+            layers.forEach((layer) => {
+                if (layer !== top) hidePhotoLayerNow(layer);
+            });
+        }
+        if (top !== photoBase) top.style.zIndex = '1';
+
+        setLayerImage(top, url);
+        void top.offsetWidth;          // 先让浏览器记住 opacity:0，过渡才会从 0 开始
+        top.classList.add('is-active');
+
+        photoTop = top;
+        photoUrl = url;
+        schedulePhotoSettle();
+    }
+
+    function hideWallpaperPhoto() {
+        const backdrop = document.getElementById('backdrop');
+        const photoOn = Boolean(backdrop && backdrop.classList.contains('has-photo'));
+        if (photoUrl === null && !photoBase && !photoTop && !photoOn) return;
+        photoUrl = null;
+        if (photoSettleTimer) {
+            global.clearTimeout(photoSettleTimer);
+            photoSettleTimer = 0;
+        }
+        photoTop = null;
+        photoBase = null;
+
+        const layers = photoLayers();
+        // 先正常淡出（图片留着，不然会直接黑掉）
+        layers.forEach((layer) => layer.classList.remove('is-active'));
+
+        if (photoClearTimer) global.clearTimeout(photoClearTimer);
+        photoClearTimer = global.setTimeout(() => {
+            photoClearTimer = 0;
+            if (photoBase || photoTop || photoUrl) return;   // 这期间又选了新壁纸
+            layers.forEach((layer) => {
+                if (layer.classList.contains('is-active')) return;
+                layer.style.backgroundImage = 'none';
+                layer.style.zIndex = '';
+            });
+            // 氛围光等图片彻底看不见了再亮回来，否则最后那 30% 会一边淡出一边被提亮
+            const backdrop = document.getElementById('backdrop');
+            if (backdrop) backdrop.classList.remove('has-photo');
+        }, WALLPAPER_FADE_MS + 60);
+    }
+
+    function paintWallpaper() {
+        const backdrop = document.getElementById('backdrop');
 
         if (!state.wallpaper) {
-            layers.forEach((layer) => {
-                layer.classList.remove('is-active');
-                layer.style.backgroundImage = 'none';
-            });
-            if (backdrop) backdrop.classList.remove('has-photo');
-            activeWallpaperLayer = 0;
-            paintedWallpaperUrl = null;
+            hideWallpaperPhoto();
         } else {
             if (backdrop) backdrop.classList.add('has-photo');
-            if (paintedWallpaperUrl !== state.wallpaper) {
-                // 双图层交叉淡入：旧图保持 is-active，新图淡入后再撤掉旧图。
-                const nextIndex = layers.length > 1 ? 1 - activeWallpaperLayer : 0;
-                const next = layers[nextIndex];
-                if (next) {
-                    next.style.backgroundImage = 'url("' + state.wallpaper.replace(/"/g, '\\"') + '")';
-                    void next.offsetWidth;
-                    next.classList.add('is-active');
-                    layers.forEach((layer, index) => {
-                        if (index !== nextIndex) layer.classList.remove('is-active');
-                    });
-                }
-                activeWallpaperLayer = nextIndex;
-                paintedWallpaperUrl = state.wallpaper;
-            }
+            showWallpaperPhoto(state.wallpaper);
         }
 
         const preview = document.getElementById('bgPreview');
@@ -522,6 +628,7 @@
         if (token !== wallpaperToken) return false;
         state.wallpaper = item.url;
         state.wallpaperName = item.name || '';
+        state.wallpaperOff = false;
         lastSwitchAt = Date.now();
         paintWallpaper();
         if (opts.persist !== false) save();
@@ -540,12 +647,26 @@
         return true;
     }
 
+    /* 关掉壁纸：照片淡出，氛围光重新亮回来（hideWallpaperPhoto 负责时序） */
+    function clearWallpaper() {
+        if (!state.wallpaper) return false;
+        wallpaperToken++;                  // 还在预加载的旧壁纸作废
+        state.wallpaper = null;
+        state.wallpaperName = '';
+        state.wallpaperOff = true;
+        paintWallpaper();
+        scheduleRotation();
+        save();
+        notify();
+        return true;
+    }
+
     function scheduleRotation() {
         if (rotateTimer) {
             global.clearInterval(rotateTimer);
             rotateTimer = 0;
         }
-        if (!state.wallpaperRotate || library.length < 2) return;
+        if (!state.wallpaper || !state.wallpaperRotate || library.length < 2) return;
         lastSwitchAt = Date.now();
         rotateTimer = global.setInterval(() => {
             if (global.document.hidden) return;
@@ -589,6 +710,12 @@
                     }
                 });
             }
+            notify();
+        } else if (state.wallpaperOff) {
+            /* 用户主动关过壁纸：库刷新后不要替他挑一张回来 */
+            state.wallpaper = null;
+            state.wallpaperName = '';
+            paintWallpaper();
             notify();
         } else {
             const pick = library.length === 1 || state.wallpaperMode === 'sequence'
@@ -786,6 +913,7 @@
         persist,
         reloadWallpapers,
         selectWallpaper,
+        clearWallpaper,
         nextWallpaper,
         resampleWallpaper,
         onChange(fn) {

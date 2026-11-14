@@ -37,6 +37,135 @@
 
 
     /* -----------------------------------------------------------------
+       确认弹窗
+       -----------------------------------------------------------------
+       和 Custom.xaml 里的 MyDialog 一样，确认框是网页自己画的浮层，
+       宿主不再弹系统 MessageBox：这样按钮、圆角、配色、动画全走同一套
+       材质，也会跟着网页缩放和深浅色模式走。
+
+       约定：危险操作把焦点放在「取消」上，回车不会误删东西；
+       Esc 和点遮罩都算取消。
+       ----------------------------------------------------------------- */
+    let dialogSeq = 0;
+
+    /**
+     * 打开确认弹窗，返回 Promise<boolean>（确定 true / 取消 false）。
+     *   dialog({ title, message, danger, okLabel, cancelLabel })
+     * message 里的 \n 原样保留（CSS 用 white-space: pre-wrap）。
+     */
+    function dialog(options) {
+        const opts = options || {};
+        const title = String(opts.title || 'StarLaunch');
+        const message = String(opts.message || '确定要继续吗？');
+        const danger = opts.danger === true;
+        const okLabel = String(opts.okLabel || '确定');
+        // cancelLabel 显式传 null：只要一个「知道了」的纯提示框（宿主报错就是这样用的）
+        const cancelLabel = opts.cancelLabel === null ? null : String(opts.cancelLabel || '取消');
+
+        closePopovers(); // 弹窗盖住页面时，先把菜单 / 浮层收掉
+
+        return new Promise((resolve) => {
+            const titleId = 'dialogTitle' + (++dialogSeq);
+            const previousFocus = document.activeElement;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal confirm-modal';
+
+            const scrim = document.createElement('div');
+            scrim.className = 'modal-scrim';
+
+            const card = document.createElement('div');
+            card.className = 'modal-card confirm-card';
+            card.setAttribute('role', 'dialog');
+            card.setAttribute('aria-modal', 'true');
+            card.setAttribute('aria-labelledby', titleId);
+
+            const head = document.createElement('div');
+            head.className = 'confirm-head';
+
+            const mark = document.createElement('span');
+            mark.className = 'confirm-mark' + (danger ? ' is-danger' : '');
+            mark.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>';
+
+            const copy = document.createElement('div');
+            copy.className = 'confirm-copy';
+            const heading = document.createElement('h2');
+            heading.id = titleId;
+            heading.textContent = title;
+            copy.appendChild(heading);
+
+            head.appendChild(mark);
+            head.appendChild(copy);
+
+            const body = document.createElement('p');
+            body.className = 'confirm-body';
+            body.textContent = message;
+
+            const actions = document.createElement('div');
+            actions.className = 'confirm-actions';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'btn btn-ghost';
+            cancelBtn.textContent = cancelLabel;
+
+            const okBtn = document.createElement('button');
+            okBtn.type = 'button';
+            okBtn.className = 'btn ' + (danger ? 'btn-danger' : 'btn-filled');
+            okBtn.textContent = okLabel;
+
+            if (cancelLabel !== null) actions.appendChild(cancelBtn);
+            actions.appendChild(okBtn);
+
+            card.appendChild(head);
+            card.appendChild(body);
+            card.appendChild(actions);
+            modal.appendChild(scrim);
+            modal.appendChild(card);
+
+            let settled = false;
+            const finish = (ok) => {
+                if (settled) return;
+                settled = true;
+                modal.classList.add('is-out');
+                window.setTimeout(() => modal.remove(), 160);
+                // 关掉后把焦点还回原处，键盘操作不丢位置
+                if (previousFocus && previousFocus !== document.body &&
+                    document.contains(previousFocus)) {
+                    try { previousFocus.focus({ preventScroll: true }); } catch (err) { /* 元素已不可聚焦 */ }
+                }
+                resolve(ok);
+            };
+
+            scrim.addEventListener('click', () => finish(false));
+            cancelBtn.addEventListener('click', () => finish(false));
+            okBtn.addEventListener('click', () => finish(true));
+
+            // 键盘只作用在弹窗内：Esc 取消，Tab 在两个按钮之间循环
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    finish(false);
+                    return;
+                }
+                if (event.key !== 'Tab') return;
+                const buttons = cancelLabel === null ? [okBtn] : [cancelBtn, okBtn];
+                const index = buttons.indexOf(document.activeElement);
+                event.preventDefault();
+                const next = event.shiftKey
+                    ? buttons[index <= 0 ? buttons.length - 1 : index - 1]
+                    : buttons[(index + 1) % buttons.length];
+                next.focus({ preventScroll: true });
+            });
+
+            document.body.appendChild(modal);
+            (danger && cancelLabel !== null ? cancelBtn : okBtn).focus({ preventScroll: true });
+        });
+    }
+
+
+    /* -----------------------------------------------------------------
        浮层
        ----------------------------------------------------------------- */
     function closePopovers() {
@@ -174,11 +303,76 @@
         });
     }
 
+    /* -----------------------------------------------------------------
+       侧边栏选中指示块
+       -----------------------------------------------------------------
+       整个导航只有一块高亮（.rail-glide），换页时在两项之间滑动。
+       这里只负责量当前项的盒子，写进 --glide-y / --glide-h；
+       位移交给 CSS 的 transform 过渡，不碰 layout。 */
+    function syncRailGlide() {
+        const rail = $('.rail');
+        const active = $('.rail-item.is-active');
+        if (!rail || !active) return;
+        const railBox = rail.getBoundingClientRect();
+        const itemBox = active.getBoundingClientRect();
+        const first = !rail.classList.contains('is-glide-ready');
+        rail.style.setProperty('--glide-y', (itemBox.top - railBox.top) + 'px');
+        rail.style.setProperty('--glide-h', itemBox.height + 'px');
+        if (first) rail.classList.add('is-glide-snap');
+        rail.classList.add('is-glide-ready');
+        if (first) {
+            // 让第一帧带着最终位置画完，再把过渡还回去
+            global.requestAnimationFrame(() => {
+                global.requestAnimationFrame(() => rail.classList.remove('is-glide-snap'));
+            });
+        }
+    }
+
+    /* -----------------------------------------------------------------
+       主视觉视差
+       -----------------------------------------------------------------
+       鼠标在右侧主视觉上移动时，前景吉祥物比背景光斑多走一点。
+       只写 --px / --py 两个数字，实际位移由 CSS 的 translate 完成；
+       pointermove 用 rAF 合并，避免每个事件都写一次样式。 */
+    function bindHeroParallax() {
+        const art = $('.hero-art');
+        if (!art || !global.matchMedia) return;
+        if (!global.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+        if (global.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        let frame = 0;
+        let px = 0;
+        let py = 0;
+
+        const paint = () => {
+            frame = 0;
+            art.style.setProperty('--px', px.toFixed(3));
+            art.style.setProperty('--py', py.toFixed(3));
+        };
+
+        const move = (event) => {
+            const box = art.getBoundingClientRect();
+            if (!box.width || !box.height) return;
+            px = Math.max(-1, Math.min(1, ((event.clientX - box.left) / box.width) * 2 - 1));
+            py = Math.max(-1, Math.min(1, ((event.clientY - box.top) / box.height) * 2 - 1));
+            if (!frame) frame = global.requestAnimationFrame(paint);
+        };
+
+        const rest = () => {
+            px = 0;
+            py = 0;
+            if (!frame) frame = global.requestAnimationFrame(paint);
+        };
+
+        art.addEventListener('pointermove', move);
+        art.addEventListener('pointerleave', rest);
+    }
+
     /** 窗口尺寸变化后，浮层要跟着挪位置 */
     function repositionPopovers() {
         const pop = $('#accountPop');
         if (pop && !pop.hidden) positionAccountPop();
     }
 
-    SL.ui = Object.assign(SL.ui || {}, { repositionPopovers, toast, closePopovers, positionAccountPop, toggleInstancePicker, toggleAccountPopover, bindPopovers, bindQuote, bindIdle, bindKeyboard });
+    SL.ui = Object.assign(SL.ui || {}, { syncRailGlide, repositionPopovers, toast, dialog, closePopovers, positionAccountPop, toggleInstancePicker, toggleAccountPopover, bindPopovers, bindQuote, bindHeroParallax, bindIdle, bindKeyboard });
 })(window);

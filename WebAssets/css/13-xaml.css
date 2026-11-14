@@ -84,7 +84,7 @@ button.x-card-head { cursor: pointer; }
     height: 15px;
     flex: none;
     color: var(--text-2);
-    transition: transform 240ms var(--ease);
+    transition: transform 260ms var(--ease);
 }
 
 .x-card:not(.is-collapsed) .x-card-chevron { transform: rotate(180deg); }
@@ -92,7 +92,10 @@ button.x-card-head { cursor: pointer; }
 .x-card.is-logo-right.is-collapsed .x-card-chevron { transform: rotate(-90deg); }
 .x-card.is-logo-right:not(.is-collapsed) .x-card-chevron { transform: rotate(0deg); }
 
-/* 折叠动画走 grid-template-rows，不用测高度，也不触发重排抖动 */
+/* 折叠动画走 grid-template-rows，不用测高度，也不触发重排抖动。
+   时长只能写在基础规则上：方向相反时浏览器用的是「变之前」那条过渡的属性，
+   在 .is-collapsed 里另写 transition-duration 对正在跑的动画不生效，
+   两个方向都会按基础规则的时长走。内容自己再淡一下，收起时就不会像被刀切掉。 */
 .x-card-body {
     display: grid;
     grid-template-rows: 1fr;
@@ -101,7 +104,19 @@ button.x-card-head { cursor: pointer; }
 
 .x-card.is-collapsed .x-card-body { grid-template-rows: 0fr; }
 
-.x-card-inner { min-height: 0; overflow: hidden; }
+.x-card-inner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity 180ms linear, transform 240ms var(--ease);
+}
+
+/* 淡出用 linear：--ease 那种强减速曲线头 40ms 就快看不见了，
+   后半程只剩一个空盒子在合上 */
+.x-card.is-collapsed .x-card-inner {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+}
 
 .x-card--bare { padding: 4px 0; }
 

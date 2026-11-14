@@ -150,38 +150,30 @@ namespace StarLaunch
         }
 
         /// <summary>用系统默认程序打开 Custom.xaml；没有关联程序时退回记事本。</summary>
-        private void OpenCustomHomeFile()
+        private ShellLaunchResult OpenCustomHomeFile()
         {
             string path = CustomHome.Ensure();
+            var result = ShellLaunch.OpenFile(path);
+            if (result.Ok) return result;
+
             try
             {
-                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo("notepad.exe", "\"" + path + "\"") { UseShellExecute = true });
+                return ShellLaunchResult.Success(path, false);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                try
-                {
-                    Process.Start(new ProcessStartInfo("notepad.exe", "\"" + path + "\"") { UseShellExecute = true });
-                }
-                catch (Exception)
-                {
-                    // 连记事本都起不来就没什么可做的了
-                }
+                return ShellLaunchResult.Failure(
+                    path,
+                    (result.Error ?? "没有能打开 .xaml 的程序") + "；用记事本打开也失败了：" + ex.Message);
             }
         }
 
         /// <summary>在资源管理器里打开配置目录。</summary>
-        private void OpenCustomHomeFolder()
+        private ShellLaunchResult OpenCustomHomeFolder()
         {
-            try
-            {
-                CustomHome.Ensure();
-                Process.Start(new ProcessStartInfo(CustomHome.Folder) { UseShellExecute = true });
-            }
-            catch (Exception)
-            {
-                // 打不开文件夹时静默忽略
-            }
+            CustomHome.Ensure();
+            return ShellLaunch.OpenFolder(CustomHome.Folder);
         }
 
         /// <summary>把 Custom.xaml 恢复成内置模板（覆盖用户内容）。</summary>

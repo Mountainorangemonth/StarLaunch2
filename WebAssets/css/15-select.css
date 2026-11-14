@@ -1,0 +1,215 @@
+/* ════════════════════════════════════════════════════════════════
+   15. 下拉框（自绘）
+   ════════════════════════════════════════════════════════════════
+   原生 <select> 收起时被 appearance: none 剥成一块「白底 + 灰箭头」的
+   方片，展开时的列表更是浏览器自己画的，圆角、底色、字号全都插不进去；
+   放在玻璃面板和深色模式里，只有它像上个年代的控件。
+
+   现在 select 只当数据源（js/18-select.js 负责），外观全在这里：
+   .sl-select-trigger 收起时就是原来那块 --glass 方片（和 .set-input 同材质、
+   同圆角、同一道细描边），只有右边箭头和展开后的浮层是新的。
+     · 触发器：保持项目原有的克制风格，不加大圆角、不加高光；
+     · 浮层：真正的浮材质，比承载层厚，也是这里唯一带模糊的地方
+       （和导航栏、实例选择器、确认框一致；性能模式下自动关掉）。
+   ════════════════════════════════════════════════════════════════ */
+
+.sl-select {
+    position: relative;
+    display: inline-flex;
+    width: min(420px, 100%);
+    height: 34px;
+    min-width: 0;
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-sm);
+}
+
+/* 原生控件只留数据：不占位、不可点、不进 Tab 序列 */
+.sl-select > select {
+    position: absolute;
+    inset: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* 收起态刻意和 .set-input 一模一样：同一层 --glass 底、同一道 1px 细描边、
+   同一个 --r-xs 圆角。区别只在右边那枚会转的箭头和展开后的浮层，
+   这样一排控件看过去还是一个整体，不会有一块「更现代」的面跳出来。 */
+.sl-select-trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: var(--glass);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    transition:
+        background-color var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease),
+        color var(--dur) var(--ease);
+}
+
+.sl-select-trigger:hover {
+    background: var(--glass-strong);
+    box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), 0.28);
+}
+
+.sl-select-trigger:focus { outline: none; }
+
+/* 展开和键盘聚焦给同一条品牌色描边，和输入框的聚焦样式同一个写法 */
+.sl-select.is-open .sl-select-trigger,
+.sl-select-trigger:focus-visible {
+    background: var(--glass-strong);
+    box-shadow: inset 0 0 0 1.5px var(--brand);
+}
+
+.sl-select-trigger:disabled {
+    cursor: default;
+    opacity: 0.5;
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+.sl-select-trigger:disabled:hover {
+    background: var(--glass);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.sl-select-value {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sl-select-caret {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    color: var(--text-2);
+    transition: transform var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.sl-select-trigger:hover .sl-select-caret,
+.sl-select-trigger:focus-visible .sl-select-caret { color: var(--text); }
+
+.sl-select.is-open .sl-select-caret {
+    color: var(--brand);
+    transform: rotate(180deg);
+}
+
+/* -----------------------------------------------------------------
+   浮层列表
+   ----------------------------------------------------------------- */
+.sl-menu {
+    position: fixed;
+    z-index: 130;
+    padding: 6px;
+    border-radius: 14px;
+    background-color: rgba(var(--glass-rgb), 0.93);
+    box-shadow:
+        var(--shadow-3),
+        inset 0 1px 0 var(--specular),
+        inset 0 0 0 1px var(--line-soft);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transform-origin: top center;
+    animation: sl-menu-in 180ms var(--ease) backwards;
+}
+
+.sl-menu[hidden] { display: none; }
+.sl-menu.is-up { transform-origin: bottom center; }
+
+@supports (backdrop-filter: blur(1px)) {
+    .sl-menu {
+        backdrop-filter: blur(calc(var(--glass-blur) + 10px)) saturate(1.7);
+        -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 10px)) saturate(1.7);
+    }
+}
+
+@keyframes sl-menu-in {
+    from { opacity: 0; transform: translateY(-5px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+}
+
+.sl-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 34px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-sm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.sl-option-label {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sl-option .icon {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: currentColor;
+    opacity: 0;
+}
+
+.sl-option:hover { background: rgba(var(--brand-rgb), 0.1); }
+.sl-option.is-active { background: rgba(var(--brand-rgb), 0.14); }
+
+.sl-option.is-selected {
+    background: var(--selected);
+    color: var(--on-selected);
+    font-weight: 600;
+}
+
+.sl-option.is-selected .icon { opacity: 1; }
+
+.sl-option:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+.sl-option:disabled:hover,
+.sl-option:disabled.is-active { background: transparent; }
+
+/* -----------------------------------------------------------------
+   各页面原来的尺寸规则跟着搬到外层
+   ----------------------------------------------------------------- */
+.folders-iso .sl-select { width: 100%; height: 30px; font-size: var(--fs-xs); }
+
+.mod-field .sl-select { flex: 1; height: 34px; font-size: var(--fs-sm); }
+
+@media (max-width: 860px) {
+    .set-value--field .sl-select { width: 100%; }
+}
+
+/* 性能模式：浮层的模糊关掉，换成不透明材质（和 .inst-pop 一个策略） */
+[data-performance="on"] .sl-menu {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: var(--glass-float);
+}

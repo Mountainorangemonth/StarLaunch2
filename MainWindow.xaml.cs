@@ -29,6 +29,9 @@ namespace StarLaunch
 
         public MainWindow()
         {
+            // 先关掉「应用程序无法正常启动」「找不到文件」这类系统错误框：
+            // 子进程会继承这个设置，出错时由界面自己的浮层说明原因
+            ShellLaunch.SuppressSystemErrorDialogs();
 
             InitializeComponent();
             StateChanged += OnWindowStateChanged;
@@ -88,6 +91,15 @@ namespace StarLaunch
             }
             catch (Exception ex)
             {
+                // 默认管理员权限带来的副作用：网页内核永远是普通权限的，提权进程
+                // 在「管理员保护」系统上会让它读不到自己的用户数据目录。这种时候
+                // 唯一能救的办法就是以普通权限重启一次（见 Services\Elevation.cs）。
+                if (Elevation.IsElevated() && TryRestartAsStandardUser(ex.Message))
+                {
+                    Close();
+                    return;
+                }
+
                 MessageBox.Show(
                     "无法初始化内嵌浏览器（WebView2）。\n\n" +
                     "请确认系统已安装 Microsoft Edge WebView2 Runtime；\n" +
@@ -129,6 +141,33 @@ namespace StarLaunch
 
             // 2. 导航到虚拟域名（此地址磁盘上不存在）
             core.Navigate("https://app.local/index.html");
+        }
+
+        /// <summary>
+        /// 网页内核起不来、而当前又是管理员进程时，问一句要不要以普通权限重开。
+        /// 返回 true 表示新实例已经起来了，调用方应该把当前窗口关掉。
+        /// 这里只能用系统对话框：网页都没起来，自己的浮层没地方画。
+        /// </summary>
+        private bool TryRestartAsStandardUser(string reason)
+        {
+            var answer = MessageBox.Show(
+                "内嵌浏览器没能启动。\n\n" + reason + "\n\n" +
+                "启动器现在是管理员权限，网页内核却只能跑在普通权限下；" +
+                "两者对不上时就会看到这个错误。\n\n" +
+                "要以普通权限重新启动 StarLaunch 吗？（当前窗口会自动关闭）",
+                "StarLaunch", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (answer != MessageBoxResult.Yes) return false;
+
+            ElevationResult result = Elevation.RestartAsStandardUser();
+            if (result.Ok) return true;
+
+            MessageBox.Show(
+                "以普通权限重启失败：\n\n" + result.Error + "\n\n" +
+                "可以在 app.manifest 里把 requestedExecutionLevel 改成 asInvoker，" +
+                "重新生成后再试。",
+                "StarLaunch", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
         }
 
         /// <summary>

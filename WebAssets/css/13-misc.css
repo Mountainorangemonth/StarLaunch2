@@ -19,6 +19,29 @@
 [data-performance="on"] .hero-mascot,
 [data-performance="on"] .pulse { animation: none; }
 
+/* 页面级动效在性能模式里也一起收掉。退出动画只留 1ms：
+   残影图层不淡出的话，会以不透明的旧页面盖住新页面。 */
+[data-performance="on"] .view.is-active,
+[data-performance="on"] .view.is-active .page-head,
+[data-performance="on"] .view.is-active .hero,
+[data-performance="on"] .view.is-active .slab,
+[data-performance="on"] .view.is-active .panel,
+[data-performance="on"] .view.is-active .set-head,
+[data-performance="on"] .view.is-active .set-block,
+[data-performance="on"] .view.is-active .about,
+[data-performance="on"] .view.is-active .tip,
+[data-performance="on"] .view.is-active .hero-greet,
+[data-performance="on"] .view.is-active .hero-name,
+[data-performance="on"] .view.is-active .week-chart span { animation: none; }
+
+[data-performance="on"] .view.is-leaving { animation-duration: 1ms; }
+
+/* 视差和导航滑块在性能模式里直接到位 */
+[data-performance="on"] .hero-art .orb,
+[data-performance="on"] .hero-mascot { translate: none; transition: none; }
+
+[data-performance="on"] .rail-glide { transition: opacity 120ms ease; }
+
 [data-performance="on"] .panel,
 [data-performance="on"] .slab,
 [data-performance="on"] .rail,
@@ -65,6 +88,36 @@ html.is-theming {
         --m3-tertiary-container, --m3-surface-container-highest, --m3-outline,
         background-color !important;
     transition-duration: 480ms !important;
+}
+
+/* 背景层的过渡不能跟着换色一起被改掉：换壁纸的流程是「画新图 → 立刻取色
+   → 换主题色」，取色几十毫秒就完成，上面那条 html.is-theming * 会把
+   正在跑的 opacity 过渡整条换掉，新图直接跳到终值，看起来就是没过渡。
+   下面两条权重（0,2,1）高于 html.is-theming *，把过渡属性拨回来。 */
+html.is-theming .backdrop__photo {
+    transition-property: opacity, transform !important;
+    transition-duration: 700ms, 1200ms !important;
+    transition-timing-function: var(--ease) !important;
+}
+
+html.is-theming .backdrop__ambient {
+    transition-property: opacity !important;
+    transition-duration: 500ms !important;
+    transition-timing-function: var(--ease) !important;
+}
+
+/* 同理：自定义内容的卡片折叠走 grid-template-rows，点开合的瞬间正好在换色
+   窗口里的话也会被掐掉。 */
+html.is-theming .x-card-body {
+    transition-property: grid-template-rows !important;
+    transition-duration: 240ms !important;
+    transition-timing-function: var(--ease) !important;
+}
+
+html.is-theming .x-card-inner {
+    transition-property: opacity, transform !important;
+    transition-duration: 180ms, 240ms !important;
+    transition-timing-function: linear, var(--ease) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
