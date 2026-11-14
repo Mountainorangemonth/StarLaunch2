@@ -426,6 +426,10 @@
                     card.classList.toggle('is-collapsed', next);
                     cardState.set(key, next);
                     head.setAttribute('aria-expanded', String(!next));
+                    // 收起来的内容不该还能被 Tab 到，也不该被读屏念出来
+                    body.inert = next;
+                    if (next) body.setAttribute('aria-hidden', 'true');
+                    else body.removeAttribute('aria-hidden');
                     if (!next) fitLogos(card);
                 });
             }
@@ -436,7 +440,11 @@
 
         if (flag(node, 'SwapLogoRight', ctx, false)) card.classList.add('is-logo-right');
         if (!flag(node, 'HasMouseAnimation', ctx, true)) card.classList.add('is-static');
-        if (collapsed) card.classList.add('is-collapsed');
+        if (collapsed) {
+            card.classList.add('is-collapsed');
+            body.inert = true;
+            body.setAttribute('aria-hidden', 'true');
+        }
 
         card.appendChild(body);
         return card;

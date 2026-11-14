@@ -317,13 +317,17 @@
 
         const removeBtn = $('#folderRemove');
         if (removeBtn) {
-            removeBtn.addEventListener('click', () => {
+            removeBtn.addEventListener('click', async () => {
                 if (!requireHost()) return;
                 const folder = currentFolder();
                 if (!folder) return;
-                const confirmed = window.confirm(
-                    '把「' + (folder.name || folder.path) + '」从列表里移除？\n\n' +
-                    '只会取消登记，磁盘上的文件一个都不会删。');
+                // 网页自绘的确认浮层（和 Custom.xaml 的 MyDialog 同一套），宿主不开系统窗口
+                const confirmed = await hostMod().confirmDialog({
+                    title: '移除游戏文件夹',
+                    message: '把「' + (folder.name || folder.path) + '」从列表里移除？\n\n' +
+                        '只会取消登记，磁盘上的文件一个都不会删。',
+                    danger: true
+                });
                 if (!confirmed) return;
 
                 hostMod().hostPost({ type: 'remove-game-dir', path: folder.path });

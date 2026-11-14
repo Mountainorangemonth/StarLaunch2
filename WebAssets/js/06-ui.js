@@ -37,6 +37,134 @@
 
 
     /* -----------------------------------------------------------------
+       确认弹窗
+       -----------------------------------------------------------------
+       和 Custom.xaml 里的 MyDialog 一样，确认框是网页自己画的浮层，
+       宿主不再弹系统 MessageBox：这样按钮、圆角、配色、动画全走同一套
+       材质，也会跟着网页缩放和深浅色模式走。
+
+       约定：危险操作把焦点放在「取消」上，回车不会误删东西；
+       Esc 和点遮罩都算取消。
+       ----------------------------------------------------------------- */
+    let dialogSeq = 0;
+
+    /**
+     * 打开确认弹窗，返回 Promise<boolean>（确定 true / 取消 false）。
+     *   dialog({ title, message, danger, okLabel, cancelLabel })
+     * message 里的 \n 原样保留（CSS 用 white-space: pre-wrap）。
+     */
+    function dialog(options) {
+        const opts = options || {};
+        const title = String(opts.title || 'StarLaunch');
+        const message = String(opts.message || '确定要继续吗？');
+        const danger = opts.danger === true;
+        const okLabel = String(opts.okLabel || '确定');
+        const cancelLabel = String(opts.cancelLabel || '取消');
+
+        closePopovers(); // 弹窗盖住页面时，先把菜单 / 浮层收掉
+
+        return new Promise((resolve) => {
+            const titleId = 'dialogTitle' + (++dialogSeq);
+            const previousFocus = document.activeElement;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal confirm-modal';
+
+            const scrim = document.createElement('div');
+            scrim.className = 'modal-scrim';
+
+            const card = document.createElement('div');
+            card.className = 'modal-card confirm-card';
+            card.setAttribute('role', 'dialog');
+            card.setAttribute('aria-modal', 'true');
+            card.setAttribute('aria-labelledby', titleId);
+
+            const head = document.createElement('div');
+            head.className = 'confirm-head';
+
+            const mark = document.createElement('span');
+            mark.className = 'confirm-mark' + (danger ? ' is-danger' : '');
+            mark.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>';
+
+            const copy = document.createElement('div');
+            copy.className = 'confirm-copy';
+            const heading = document.createElement('h2');
+            heading.id = titleId;
+            heading.textContent = title;
+            copy.appendChild(heading);
+
+            head.appendChild(mark);
+            head.appendChild(copy);
+
+            const body = document.createElement('p');
+            body.className = 'confirm-body';
+            body.textContent = message;
+
+            const actions = document.createElement('div');
+            actions.className = 'confirm-actions';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'btn btn-ghost';
+            cancelBtn.textContent = cancelLabel;
+
+            const okBtn = document.createElement('button');
+            okBtn.type = 'button';
+            okBtn.className = 'btn ' + (danger ? 'btn-danger' : 'btn-filled');
+            okBtn.textContent = okLabel;
+
+            actions.appendChild(cancelBtn);
+            actions.appendChild(okBtn);
+
+            card.appendChild(head);
+            card.appendChild(body);
+            card.appendChild(actions);
+            modal.appendChild(scrim);
+            modal.appendChild(card);
+
+            let settled = false;
+            const finish = (ok) => {
+                if (settled) return;
+                settled = true;
+                modal.classList.add('is-out');
+                window.setTimeout(() => modal.remove(), 160);
+                // 关掉后把焦点还回原处，键盘操作不丢位置
+                if (previousFocus && previousFocus !== document.body &&
+                    document.contains(previousFocus)) {
+                    try { previousFocus.focus({ preventScroll: true }); } catch (err) { /* 元素已不可聚焦 */ }
+                }
+                resolve(ok);
+            };
+
+            scrim.addEventListener('click', () => finish(false));
+            cancelBtn.addEventListener('click', () => finish(false));
+            okBtn.addEventListener('click', () => finish(true));
+
+            // 键盘只作用在弹窗内：Esc 取消，Tab 在两个按钮之间循环
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    finish(false);
+                    return;
+                }
+                if (event.key !== 'Tab') return;
+                const buttons = [cancelBtn, okBtn];
+                const index = buttons.indexOf(document.activeElement);
+                event.preventDefault();
+                const next = event.shiftKey
+                    ? buttons[index <= 0 ? buttons.length - 1 : index - 1]
+                    : buttons[(index + 1) % buttons.length];
+                next.focus({ preventScroll: true });
+            });
+
+            document.body.appendChild(modal);
+            (danger ? cancelBtn : okBtn).focus({ preventScroll: true });
+        });
+    }
+
+
+    /* -----------------------------------------------------------------
        浮层
        ----------------------------------------------------------------- */
     function closePopovers() {
@@ -180,5 +308,5 @@
         if (pop && !pop.hidden) positionAccountPop();
     }
 
-    SL.ui = Object.assign(SL.ui || {}, { repositionPopovers, toast, closePopovers, positionAccountPop, toggleInstancePicker, toggleAccountPopover, bindPopovers, bindQuote, bindIdle, bindKeyboard });
+    SL.ui = Object.assign(SL.ui || {}, { repositionPopovers, toast, dialog, closePopovers, positionAccountPop, toggleInstancePicker, toggleAccountPopover, bindPopovers, bindQuote, bindIdle, bindKeyboard });
 })(window);

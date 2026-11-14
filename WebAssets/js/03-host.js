@@ -59,10 +59,32 @@
     function hostPost(message) {
         const webview = window.chrome && window.chrome.webview;
         if (webview && typeof webview.postMessage === 'function') {
-            webview.postMessage(message);
-            return true;
+            try {
+                webview.postMessage(message);
+                return true;
+            } catch (err) {
+                return false;
+            }
         }
         return false;
+    }
+
+    /* -----------------------------------------------------------------
+       确认框
+       -----------------------------------------------------------------
+       确认框由网页自己画（06-ui.js 的 dialog()），宿主不再弹系统窗口。
+       和 Custom.xaml 的 MyDialog 一样走 .modal 材质：同一个圆角、同一套
+       配色和动画，也会跟着页面缩放和深浅色模式走。
+       ----------------------------------------------------------------- */
+    /**
+     * 弹一个确认浮层，返回 Promise<boolean>。
+     *   confirmDialog({ title, message, danger, okLabel, cancelLabel })
+     * danger 为真时确定按钮是红底，默认焦点在「取消」。
+     */
+    function confirmDialog(options) {
+        if (typeof uiMod.dialog === 'function') return uiMod.dialog(options);
+        // 极端情况下 UI 模块没就位（脚本顺序被改过），退化成浏览器自带确认框
+        return Promise.resolve(window.confirm((options && options.message) || '确定要继续吗？'));
     }
 
     /* ── Markdown ────────────────────────────────────────── */
@@ -77,5 +99,7 @@
         });
     }
 
-    SL.host = Object.assign(SL.host || {}, { handleWindowControl, detectHost, hostPost, hasHost, bindHost });
+    SL.host = Object.assign(SL.host || {}, {
+        handleWindowControl, detectHost, hostPost, hasHost, bindHost, confirmDialog
+    });
 })(window);

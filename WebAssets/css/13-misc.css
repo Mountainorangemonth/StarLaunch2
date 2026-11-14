@@ -67,6 +67,36 @@ html.is-theming {
     transition-duration: 480ms !important;
 }
 
+/* 背景层的过渡不能跟着换色一起被改掉：换壁纸的流程是「画新图 → 立刻取色
+   → 换主题色」，取色几十毫秒就完成，上面那条 html.is-theming * 会把
+   正在跑的 opacity 过渡整条换掉，新图直接跳到终值，看起来就是没过渡。
+   下面两条权重（0,2,1）高于 html.is-theming *，把过渡属性拨回来。 */
+html.is-theming .backdrop__photo {
+    transition-property: opacity, transform !important;
+    transition-duration: 700ms, 1200ms !important;
+    transition-timing-function: var(--ease) !important;
+}
+
+html.is-theming .backdrop__ambient {
+    transition-property: opacity !important;
+    transition-duration: 500ms !important;
+    transition-timing-function: var(--ease) !important;
+}
+
+/* 同理：自定义内容的卡片折叠走 grid-template-rows，点开合的瞬间正好在换色
+   窗口里的话也会被掐掉。 */
+html.is-theming .x-card-body {
+    transition-property: grid-template-rows !important;
+    transition-duration: 240ms !important;
+    transition-timing-function: var(--ease) !important;
+}
+
+html.is-theming .x-card-inner {
+    transition-property: opacity, transform !important;
+    transition-duration: 180ms, 240ms !important;
+    transition-timing-function: linear, var(--ease) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

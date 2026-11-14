@@ -15,11 +15,14 @@
 
     const SL = global.SL;
 
-    /* PCL 默认的四个命名空间，见 Custom.xaml 末尾的说明 */
+    /* PCL 默认的四个命名空间，见 Custom.xaml 末尾的说明。
+       注意 local 的 URI 里带空格（assembly=Plain Craft Launcher 2），XML 规范
+       要求命名空间是合法 URI，Chromium 会因此判整份文件不合法，所以空格要
+       转义成 %20；命名空间本身不参与渲染，元素是按 localName 匹配的。 */
     const NAMESPACES = ' xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"' +
         ' xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"' +
         ' xmlns:sys="clr-namespace:System;assembly=mscorlib"' +
-        ' xmlns:local="clr-namespace:PCL;assembly=Plain Craft Launcher 2"';
+        ' xmlns:local="clr-namespace:PCL;assembly=Plain%20Craft%20Launcher%202"';
 
     const VARIABLE_RE = /^\{\s*variable\s*:\s*([^:}]+?)\s*(?::([^}]*))?\}$/i;
     const RESOURCE_RE = /^\{\s*(?:DynamicResource|StaticResource)\s+([^}]+?)\s*\}$/i;
@@ -33,6 +36,10 @@
         text = text.replace(/<\?xml[\s\S]*?\?>/gi, '');
         // 裸 & 会让解析直接失败，先补成实体（已经是实体的不动）
         text = text.replace(/&(?!(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/g, '&amp;');
+        // 文件自己写的 clr-namespace 里也可能有空格（复制 PCL 的写法很常见），
+        // 同样得转义，否则整个文档解析不过
+        text = text.replace(/(xmlns:[\w.-]+\s*=\s*")(clr-namespace:[^"]*)(")/gi, (all, head, uri, tail) =>
+            head + uri.replace(/\s+/g, '%20') + tail);
         return text;
     }
 

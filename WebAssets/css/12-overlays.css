@@ -150,6 +150,67 @@
 .modal.is-done .launch-mark { background: var(--brand-container); color: var(--on-brand-container); }
 .launch-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 
+/* 确认弹窗 —— 和启动弹窗共用 .modal 的遮罩与材质，只是内容更窄 */
+.confirm-modal { z-index: 140; }
+
+.confirm-card { width: min(420px, 100%); }
+
+.confirm-head { display: flex; align-items: center; gap: 12px; }
+
+.confirm-mark {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: 11px;
+    background: var(--brand-container);
+    color: var(--on-brand-container);
+}
+
+.confirm-mark.is-danger {
+    background: rgba(var(--m3-error-rgb, 179, 38, 30), 0.12);
+    color: var(--m3-error, #b3261e);
+}
+
+.confirm-mark .icon { width: 16px; height: 16px; }
+
+.confirm-copy { display: flex; flex-direction: column; min-width: 0; }
+.confirm-head h2 {
+    font-size: var(--fs-h2);
+    font-weight: 650;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 消息里的换行原样保留：调用方用 \n\n 分段，这里不动格式 */
+.confirm-body {
+    margin-top: 12px;
+    max-height: 42vh;
+    overflow: auto;
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+/* 关闭时淡出，别硬切 */
+.confirm-modal.is-out { opacity: 0; transition: opacity 140ms ease; }
+.confirm-modal.is-out .confirm-card {
+    animation: none;
+    transform: translateY(6px) scale(0.98);
+    transition: transform 140ms var(--ease);
+}
+
 /* Toast */
 .toasts {
     position: fixed;
