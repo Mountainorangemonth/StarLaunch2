@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Microsoft.Win32;
 using Microsoft.Web.WebView2.Core;
 using StarLaunch.Services;
@@ -249,6 +250,131 @@ namespace StarLaunch
             if (trimmed.Length == 0) return false;
             if (string.Equals(full, trimmed, StringComparison.OrdinalIgnoreCase)) return true;
             return full.StartsWith(trimmed + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /* -----------------------------------------------------------------
+           版本设置（StarLaunch.instance.json）
+           -----------------------------------------------------------------
+           网页发来的路径不当真：只接受「登记过的游戏文件夹 / versions /
+           <版本名>」这一层，写之前再确认目录真的存在。
+           ----------------------------------------------------------------- */
+
+        /// <summary>
+        /// 网页传来的版本目录 → 校验过的绝对路径。
+        /// 必须是某个已登记 .minecraft 的 versions 下的一级子目录。
+        /// </summary>
+        private static bool TryResolveVersionDir(string? path, out string full, out string error)
+        {
+            full = string.Empty;
+            error = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                error = "没有给出版本目录";
+                return false;
+            }
+
+            try
+            {
+                full = Path.GetFullPath(path!);
+            }
+            catch (Exception ex)
+            {
+                error = "路径无效：" + ex.Message;
+                return false;
+            }
+
+            if (!Directory.Exists(full))
+            {
+                error = "版本目录不存在，可能已被移动或删除";
+                return false;
+            }
+
+            string? parent = Path.GetDirectoryName(full);
+            foreach (var entry in GameDirs.ResolveAll())
+            {
+                string versions = Path.Combine(entry.Path, "versions");
+                if (parent != null && string.Equals(parent.TrimEnd('\\', '/'), versions.TrimEnd('\\', '/'),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            error = "这个目录不在登记的游戏文件夹里，拒绝写入";
+            return false;
+        }
+
+        /// <summary>保存一个版本的独立设置：写进版本目录里的 StarLaunch.instance.json。</summary>
+        private void SaveInstanceSettings(JsonElement root)
+        {
+            string id = ReadString(root, "id") ?? string.Empty;
+            string? path = ReadString(root, "path");
+
+            if (!TryResolveVersionDir(path, out string full, out string error))
+            {
+                PostInstanceSettingsMessage("save", false, id, path, error);
+                return;
+            }
+
+            if (!root.TryGetProperty("settings", out var payload) || payload.ValueKind != JsonValueKind.Object)
+            {
+                PostInstanceSettingsMessage("save", false, id, full, "没有收到设置内容");
+                return;
+            }
+
+            InstanceSettings? settings;
+            try
+            {
+                settings = JsonSerializer.Deserialize<InstanceSettings>(
+                    payload.GetRawText(), InstanceSettingsStore.SerializerOptions);
+            }
+            catch (Exception ex)
+            {
+                PostInstanceSettingsMessage("save", false, id, full, "设置格式不对：" + ex.Message);
+                return;
+            }
+
+            if (!InstanceSettingsStore.Save(full, settings, out string? writeError))
+            {
+                PostInstanceSettingsMessage("save", false, id, full, writeError);
+                return;
+            }
+
+            PostInstanceSettingsMessage("save", true, id, full, null);
+        }
+
+        /// <summary>删掉版本目录里的设置文件，回到「完全跟随全局」。</summary>
+        private void ResetInstanceSettings(JsonElement root)
+        {
+            string id = ReadString(root, "id") ?? string.Empty;
+            string? path = ReadString(root, "path");
+
+            if (!TryResolveVersionDir(path, out string full, out string error))
+            {
+                PostInstanceSettingsMessage("reset", false, id, path, error);
+                return;
+            }
+
+            if (!InstanceSettingsStore.Reset(full, out string? resetError))
+            {
+                PostInstanceSettingsMessage("reset", false, id, full, resetError);
+                return;
+            }
+
+            PostInstanceSettingsMessage("reset", true, id, full, null);
+        }
+
+        private void PostInstanceSettingsMessage(string action, bool ok, string id, string? path, string? error)
+        {
+            PostPageMessage("instance-settings-saved", new Dictionary<string, object?>
+            {
+                ["ok"] = ok,
+                ["id"] = id,
+                ["action"] = action,
+                ["path"] = path,
+                ["error"] = error
+            });
         }
 
         /// <summary>

@@ -528,3 +528,59 @@
 .about-meta dd { font-weight: 550; }
 
 .about-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* 关于页「特别鸣谢」：一行一个服务，左边缩写字标、中间说明、右边打开按钮。
+   和输入框一样刻意保持扁平 —— 1px 描边 + 透明底，不加填充面和高光。 */
+.about-credits { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.about-credits-head h3 { font-size: var(--fs-h2); font-weight: 700; letter-spacing: -0.01em; }
+.about-credits-head p { margin-top: 4px; font-size: var(--fs-xs); color: var(--text-2); }
+
+.credit-list { display: flex; flex-direction: column; gap: 6px; }
+
+.credit {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-radius: var(--r-xs);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    transition: background-color var(--dur-fast) ease;
+}
+
+.credit:hover { background: rgba(var(--brand-rgb), 0.05); }
+
+.credit-logo {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-xs);
+    background: rgba(var(--brand-rgb), 0.1);
+    color: var(--brand);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    user-select: none;
+}
+
+.credit-copy { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.credit-copy b { font-size: var(--fs-sm); font-weight: 600; }
+.credit-copy small { font-size: var(--fs-micro); color: var(--text-2); line-height: 1.5; }
+
+.credit .btn-sm { flex: none; }
+
+.about-credits-foot { font-size: var(--fs-micro); color: var(--text-2); line-height: 1.6; }
+.about-credits-foot code {
+    padding: 1px 5px;
+    border-radius: 5px;
+    background: rgba(var(--brand-rgb), 0.08);
+    font-size: inherit;
+}
+
+@media (max-width: 720px) {
+    .credit { flex-wrap: wrap; }
+    .credit-copy { flex-basis: calc(100% - 44px); }
+    .credit .btn-sm { margin-left: 44px; }
+}

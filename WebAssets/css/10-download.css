@@ -116,7 +116,7 @@
 }
 
 .mod-field { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.mod-field > span { width: 34px; flex: none; font-size: var(--fs-xs); color: var(--text-2); }
+.mod-field > span { min-width: 34px; flex: none; font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
 
 .mod-field input,
 .mod-field select {
@@ -243,6 +243,65 @@
 .pager-btn:disabled { opacity: 0.4; cursor: default; }
 .pager-pages { display: flex; align-items: center; gap: 4px; }
 
+/* 页码是窗口式的：中间用省略号收起来，末尾再给一个「当前 / 总页数」 */
+.pager-gap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 28px;
+    color: var(--text-3, var(--text-2));
+    font-size: var(--fs-micro);
+    opacity: 0.7;
+    user-select: none;
+}
+
+.pager-total {
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+/* 「跳至 __ 页」：和输入框同一套扁平材质，去掉数字框自带的上下箭头 */
+.pager-jump {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+}
+
+.pager-input {
+    width: 46px;
+    height: 28px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: var(--glass-weak);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-micro);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.pager-input::-webkit-outer-spin-button,
+.pager-input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+
+.pager-input:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 1.5px var(--brand);
+}
+
+@media (max-width: 640px) {
+    .catalog-pager { flex-wrap: wrap; gap: 8px 6px; }
+    .pager-total { order: 9; flex-basis: 100%; text-align: center; }
+}
+
 .tone-b { background: var(--hero); color: var(--on-hero); }
 .tone-c { background: rgba(var(--brand-rgb), 0.2); color: var(--brand); }
 .tone-d { background: var(--m3-tertiary-container); color: var(--m3-on-tertiary-container); }
@@ -310,6 +369,29 @@
 /* 侧栏 */
 .sources { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 5px; }
 
+/* 下载源面板分成「原版文件 / 社区资源」两组，各带一条小标题 */
+.source-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 14px 5px;
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+}
+
+.source-head em {
+    font-style: normal;
+    text-align: right;
+    opacity: 0.85;
+}
+
+.sources + .source-head {
+    margin-top: 4px;
+    padding-top: 9px;
+    box-shadow: inset 0 1px 0 var(--line-soft);
+}
+
 .source {
     display: flex;
     align-items: center;
@@ -375,3 +457,339 @@
 .tip .icon { color: var(--brand); width: 17px; height: 17px; margin-top: 1px; }
 .tip b { display: block; font-size: var(--fs-sm); font-weight: 620; margin-bottom: 2px; }
 .tip p { font-size: var(--fs-xs); color: var(--text-2); line-height: 1.6; }
+
+/* ════════════════════════════════════════════════════════════════
+   真实下载：状态、队列、社区资源详情浮层
+   ════════════════════════════════════════════════════════════════ */
+
+/* 版本行右侧的动作胶囊：跟着任务状态换色 */
+.version-action.is-running { background: rgba(var(--brand-rgb), 0.16); color: var(--brand); }
+.version-action.is-queued { background: rgba(var(--shadow-rgb), 0.08); color: var(--text-2); }
+.version-action.is-done { background: rgba(52, 199, 89, 0.16); color: #2f8f4e; }
+.version-action.is-failed { background: rgba(196, 92, 75, 0.16); color: #b5503f; }
+
+[data-mode="dark"] .version-action.is-done { color: #7ee2a0; }
+[data-mode="dark"] .version-action.is-failed { color: #ffb4a4; }
+
+.dl-loading {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 18px 16px;
+    font-size: var(--fs-sm);
+    color: var(--text-2);
+}
+
+.dl-loading .spin {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(var(--brand-rgb), 0.25);
+    border-top-color: var(--brand);
+    animation: dl-spin 720ms linear infinite;
+}
+
+@keyframes dl-spin { to { transform: rotate(1turn); } }
+
+/* 队列：文字按钮 + 失败态 */
+.queue-item.is-failed .queue-bar i { background: #b5503f; }
+.queue-item.is-done .queue-bar i { background: #34c759; }
+.queue-item.is-canceled { opacity: 0.6; }
+.queue-item.is-paused { opacity: 0.78; }
+.queue-item.is-paused .queue-bar i { background: var(--text-2); }
+
+/* 暂停 / 取消两个纯文字按钮排一行 */
+.queue-actions { display: flex; gap: 12px; }
+.queue-resume { color: var(--brand); }
+
+.queue-cancel {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-2);
+    font-size: var(--fs-micro);
+    cursor: pointer;
+}
+
+.queue-cancel:hover { color: var(--brand); }
+
+.queue-empty {
+    padding: 10px 16px 16px;
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+    line-height: 1.6;
+}
+
+/* 社区资源图标：Modrinth 给的是真图标，拉不到就退回字母块 */
+.mod-row-tile.has-icon { background: transparent; box-shadow: inset 0 0 0 1px var(--line-soft); overflow: hidden; }
+.mod-row-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ── 项目详情浮层 ───────────────────────────────────────────── */
+.proj-modal { z-index: 128; }
+
+.proj-card {
+    width: min(740px, 100%);
+    max-height: min(76vh, 720px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 18px 14px;
+}
+
+.proj-head { display: flex; align-items: flex-start; gap: 12px; }
+
+.proj-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+    overflow: hidden;
+    background: rgba(var(--brand-rgb), 0.12);
+    color: var(--brand);
+}
+
+.proj-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.proj-icon .icon { width: 20px; height: 20px; }
+
+.proj-copy { flex: 1; min-width: 0; }
+.proj-copy h2 { margin: 0 0 2px; font-size: 17px; font-weight: 680; letter-spacing: -0.01em; }
+.proj-meta { font-size: var(--fs-micro); color: var(--text-2); }
+
+.proj-desc { margin: 0; font-size: var(--fs-xs); color: var(--text-2); line-height: 1.6; max-height: 3.2em; overflow: hidden; }
+
+.proj-filters {
+    /* 两行：游戏版本 / 加载器，然后 装到哪个实例 + 刷新按钮。
+       挤成一行的话原生 select 会被压成「全部…」，看不出选了啥。 */
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    align-items: end;
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    background: var(--glass-weak);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.proj-filters .mod-field { flex-direction: column; align-items: stretch; gap: 4px; }
+.proj-filters .mod-field > span { width: auto; }
+.proj-filters .mod-field input,
+.proj-filters .mod-field select { width: 100%; flex: none; }
+.proj-filters #projReload { justify-self: end; align-self: end; }
+
+.proj-files {
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 2px;
+    margin-right: -2px;
+}
+
+.proj-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    transition: background-color var(--dur-fast) ease;
+}
+
+.proj-file:hover { background: rgba(var(--brand-rgb), 0.07); }
+
+.proj-file-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.proj-file-main b { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-file-main small { font-size: var(--fs-micro); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.proj-file-tags { display: flex; align-items: center; gap: 5px; flex: none; }
+
+.proj-file-tag {
+    padding: 1px 7px;
+    border-radius: 5px;
+    background: rgba(var(--brand-rgb), 0.1);
+    color: var(--brand);
+    font-size: var(--fs-micro);
+    font-weight: 600;
+}
+
+.proj-file-tag.is-beta { background: rgba(214, 158, 46, 0.18); color: #8a6a13; }
+.proj-file-tag.is-alpha { background: rgba(196, 92, 75, 0.16); color: #b5503f; }
+
+[data-mode="dark"] .proj-file-tag.is-beta { color: #f0cf7c; }
+[data-mode="dark"] .proj-file-tag.is-alpha { color: #ffb4a4; }
+
+.proj-file .btn-sm { flex: none; }
+
+.proj-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line-soft);
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+}
+
+.proj-empty { padding: 22px 8px; text-align: center; font-size: var(--fs-xs); color: var(--text-2); }
+
+/* 面板里的空状态统一一下间距 */
+.panel .empty { padding: 18px 16px; }
+
+@media (max-width: 720px) {
+    .proj-card { width: 100%; max-height: 84vh; }
+    .proj-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* 带 datalist 的输入框会露出一枚原生下拉箭头，把它压暗一点，和自绘下拉对齐 */
+.mod-field input::-webkit-calendar-picker-indicator,
+.login-field input::-webkit-calendar-picker-indicator { opacity: 0.45; cursor: pointer; }
+
+/* ── 安装原版浮层：选加载器（PCL 的安装页） ─────────────────── */
+.install-modal { z-index: 129; }
+
+.install-card {
+    width: min(560px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 18px 14px;
+}
+
+.install-head { display: flex; align-items: flex-start; gap: 12px; }
+
+.install-mark {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    background: var(--brand);
+    color: var(--on-brand);
+    box-shadow: 0 4px 14px rgba(var(--brand-rgb), 0.3);
+}
+
+.install-mark .icon { width: 18px; height: 18px; }
+
+.install-copy { flex: 1; min-width: 0; }
+.install-copy h2 { margin: 1px 0 2px; font-size: 17px; font-weight: 680; letter-spacing: -0.01em; }
+.install-copy p { margin: 0; font-size: var(--fs-xs); color: var(--text-2); line-height: 1.55; }
+
+.install-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: min(52vh, 440px);
+    overflow-y: auto;
+    padding-right: 2px;
+    margin-right: -2px;
+}
+
+/* 安装浮层里的「实例名称」：和搜索表单里的输入框同一套 */
+.install-name {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.install-name .mod-field { flex: 1; min-width: 0; }
+.install-name-tip {
+    flex: none;
+    padding-bottom: 9px;
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+}
+
+.install-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: var(--glass-weak);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.install-row:hover { background: var(--glass); }
+
+.install-row.is-active {
+    background: rgba(var(--brand-rgb), 0.1);
+    box-shadow: inset 0 0 0 1.5px rgba(var(--brand-rgb), 0.45);
+}
+
+.install-name { flex: none; min-width: 92px; font-size: var(--fs-body); font-weight: 640; }
+.install-status { flex: 1; min-width: 0; font-size: var(--fs-xs); color: var(--text-2); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.install-row .icon { width: 15px; height: 15px; flex: none; color: var(--text-2); }
+.install-row.is-active .icon { color: var(--brand); }
+
+.install-versions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 12px 6px;
+    max-height: 190px;
+    overflow-y: auto;
+}
+
+.install-versions--note { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+.install-version {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--glass);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.install-version:hover { background: var(--glass-strong); }
+
+.install-version.is-active {
+    background: rgba(var(--brand-rgb), 0.14);
+    box-shadow: inset 0 0 0 1.5px rgba(var(--brand-rgb), 0.5);
+    color: var(--brand);
+    font-weight: 600;
+}
+
+.install-tag {
+    padding: 0 6px;
+    border-radius: 5px;
+    background: var(--brand-container);
+    color: var(--on-brand-container);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.install-note { font-size: var(--fs-micro); color: var(--text-2); line-height: 1.6; }
+.install-error { margin: 2px 2px 0; font-size: var(--fs-xs); color: #b5503f; }
+
+[data-mode="dark"] .install-error { color: #ffb4a4; }
+
+.install-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 9px;
+    border-top: 1px solid var(--line-soft);
+}
+
+.install-actions { display: flex; gap: 8px; flex: none; }

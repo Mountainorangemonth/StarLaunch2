@@ -1,0 +1,593 @@
+/* ════════════════════════════════════════════════════════════════
+   16. 版本设置（PCL 式四栏浮层）
+   ---------------------------------------------------------------------
+   整个浮层是一个「窗口」：自绘标题栏 + 左侧分组 + 右侧滚动内容。
+   材质沿用弹窗那一套（--glass-float 不透明底 + 阴影 + 内高光），
+   模糊仍然只留给真正的浮层；输入框、下拉、开关全部复用
+   .set-input / .set-select / .switch，和设置页保持一样的手感。
+   ════════════════════════════════════════════════════════════════ */
+.iset {
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+}
+
+.iset[hidden] { display: none; }
+
+/* hidden 在 .set-row / .iset-count 这种被作者样式设了 display 的元素上会被盖掉，
+   这里统一兜一层（例如「手动指定 Java」那一行） */
+.iset [hidden] { display: none !important; }
+
+.iset-scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(var(--shadow-rgb), 0.34);
+    animation: fade-in 180ms ease backwards;
+}
+
+.iset-window {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: min(1060px, 100%);
+    height: min(720px, 100%);
+    overflow: hidden;
+    border-radius: var(--r-lg);
+    background: var(--glass-float);
+    box-shadow: var(--shadow-3), inset 0 1px 0 var(--specular);
+    animation: iset-in 260ms var(--ease) backwards;
+}
+
+@keyframes iset-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.988); }
+    to { opacity: 1; transform: none; }
+}
+
+/* 窗口本身只是接收焦点用的容器（打开浮层时焦点落在这里），不画焦点圈 */
+.iset-window:focus { outline: none; }
+.iset-window:focus-visible { outline: none; }
+
+.iset.is-out { opacity: 0; transition: opacity 140ms ease; }
+.iset.is-out .iset-window { animation: none; transform: translateY(6px) scale(0.99); transition: transform 140ms var(--ease); }
+
+/* ── 标题栏 ─────────────────────────────────────────────── */
+.iset-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: none;
+    padding: 9px 12px 9px 8px;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--glass);
+}
+
+.iset-back .icon { transform: rotate(180deg); }
+
+.iset-titles {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.iset-kicker {
+    font-size: var(--fs-micro);
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--text-2);
+}
+
+.iset-titles h2 {
+    font-size: var(--fs-h2);
+    font-weight: 650;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 「已保存」一闪而过，不打断操作 */
+.iset-saved {
+    margin-left: auto;
+    font-size: var(--fs-xs);
+    color: var(--brand);
+    opacity: 0;
+    transition: opacity 180ms ease;
+}
+
+.iset-saved.is-in { opacity: 1; }
+
+/* ── 左侧分组 + 右侧内容 ────────────────────────────────── */
+.iset-body {
+    display: grid;
+    grid-template-columns: 186px minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+}
+
+.iset-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px;
+    overflow-y: auto;
+    border-right: 1px solid var(--line-soft);
+    background: var(--glass-weak);
+}
+
+.iset-nav button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    height: 38px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 550;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.iset-nav button .icon { width: 16px; height: 16px; flex: none; }
+
+.iset-nav button:hover { background: rgba(var(--brand-rgb), 0.08); color: var(--text); }
+
+.iset-nav button.is-active {
+    background: var(--selected);
+    color: var(--on-selected);
+    font-weight: 620;
+}
+
+.iset-count {
+    margin-left: auto;
+    flex: none;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(var(--shadow-rgb), 0.08);
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+.iset-nav button.is-active .iset-count { background: rgba(var(--shadow-rgb), 0.12); }
+
+.iset-main {
+    min-width: 0;
+    overflow-y: auto;
+    padding: 16px 18px 22px;
+    scrollbar-width: thin;
+    overscroll-behavior: contain;
+    /* 纵向 flex 是为了让「选中操作栏」在内容不满一屏时也贴着底部 */
+    display: flex;
+    flex-direction: column;
+}
+
+.iset-tab { display: none; }
+.iset-tab.is-active {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    /* 底部留 12px：内容长到要滚动时，操作栏和最后一行之间不至于贴死 */
+    padding-bottom: 12px;
+    animation: view-in 240ms var(--ease) backwards;
+}
+
+/* ── 概览：版本卡片 ─────────────────────────────────────── */
+.iset-hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    overflow: hidden;
+    border-radius: var(--r-md);
+    background: var(--glass-weak);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.iset-hero-tile {
+    width: 52px;
+    height: 52px;
+    flex: none;
+    border-radius: 14px;
+}
+
+.iset-hero-tile .cube { width: 24px; height: 24px; }
+
+.iset-hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.iset-hero h3 {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.iset-hero p { font-size: var(--fs-xs); color: var(--text-2); }
+
+.iset-hero-path {
+    font-size: var(--fs-micro);
+    word-break: break-all;
+    opacity: 0.9;
+}
+
+.iset-hero .badge {
+    flex: none;
+    align-self: flex-start;
+    margin-left: 0;
+}
+
+.iset-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.iset-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 9px 12px;
+    border-radius: var(--r-sm);
+    background: var(--glass-weak);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.iset-stat span { font-size: var(--fs-micro); color: var(--text-2); }
+
+.iset-stat b {
+    font-size: var(--fs-sm);
+    font-weight: 620;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.iset-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0 12px;
+}
+
+.iset-shortcuts .btn {
+    height: 32px;
+    justify-content: flex-start;
+    font-size: var(--fs-xs);
+}
+
+/* ── 设置页的提示条 ─────────────────────────────────────── */
+.iset-note { margin-top: 0; }
+.iset-note .icon-btn { flex: none; width: 24px; height: 24px; color: inherit; }
+
+/* ── Mod 管理 ──────────────────────────────────────────── */
+.iset-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.iset-search { flex: 1; min-width: 180px; }
+
+.iset-toolbar-actions { display: flex; gap: 6px; }
+
+.iset-hint {
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+    word-break: break-all;
+}
+
+.iset-mod-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+}
+
+.iset-muted { font-size: var(--fs-micro); color: var(--text-2); }
+
+.iset-mod-list { display: flex; flex-direction: column; gap: 2px; }
+
+/* 一行就是一个选择区域：整行可点，46px 高，图标 32px。
+   点中之后底部会浮出操作栏（启停 / 删除都在那边）。 */
+.iset-mod-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 8px 12px;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    outline: none;
+    transition: background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.iset-mod-row:hover { background: rgba(var(--brand-rgb), 0.07); }
+
+.iset-mod-row:focus-visible { box-shadow: inset 0 0 0 1.5px var(--brand); }
+
+/* 选中态：只是换一层淡色底 + 一道细描边，不给填充面和高光 */
+.iset-mod-row.is-selected {
+    background: rgba(var(--brand-rgb), 0.12);
+    box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), 0.4);
+}
+
+.iset-mod-row.is-selected:hover { background: rgba(var(--brand-rgb), 0.16); }
+
+.iset-mod-icon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border-radius: 8px;
+    background: rgba(var(--brand-rgb), 0.12);
+    color: var(--brand);
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.iset-mod-icon .icon { width: 17px; height: 17px; }
+/* 资源自己的图标（Mod 的 icon.png / 材质包的 pack.png）：裁成圆角方块，读不到就退回通用图标 */
+.iset-mod-icon.has-image { overflow: hidden; padding: 0; background: rgba(var(--shadow-rgb), 0.08); }
+/* 拿到真图标之后把通用图标藏掉，别让两个图标挤在一起 */
+.iset-mod-icon.has-image > .icon { display: none; }
+.iset-mod-icon.has-image > img { display: block; }
+.iset-mod-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: -webkit-optimize-contrast;
+}
+.iset-mod-row.is-disabled .iset-mod-icon img { filter: grayscale(1) opacity(0.6); }
+
+.iset-mod-row.is-selected .iset-mod-icon {
+    background: var(--brand);
+    color: var(--on-brand);
+}
+
+.iset-mod-row.is-disabled .iset-mod-icon {
+    background: rgba(var(--shadow-rgb), 0.07);
+    color: var(--text-2);
+}
+
+.iset-mod-row.is-disabled.is-selected .iset-mod-icon {
+    background: var(--brand);
+    color: var(--on-brand);
+}
+
+.iset-mod-name {
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: var(--fs-body);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.iset-mod-row.is-disabled .iset-mod-name { color: var(--text-2); }
+
+.iset-mod-size {
+    margin-left: auto;
+    flex: none;
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+}
+
+/* ── 选中操作栏 ───────────────────────────────────────────
+   浮在内容底部的一张卡片：上面一行「已选择 N 个文件」，下面是按钮。
+   只有「当前最该点的那一下」用品牌色淡底（禁用 / 启用二选一），
+   其余保持扁平。 */
+.iset-selectbar {
+    position: sticky;
+    /* -22px 抵消 .iset-main 的底部内边距，卡片才贴得住可视区底边 */
+    bottom: -22px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin: auto 0 -22px;   /* auto：内容不满一屏时也贴着底部 */
+    padding: 10px 16px 12px;
+    border-radius: var(--r-sm);
+    background: var(--glass-float);
+    box-shadow: var(--shadow-2);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 160ms var(--ease), transform 160ms var(--ease);
+}
+
+.iset-selectbar.is-in {
+    opacity: 1;
+    transform: none;
+}
+
+.iset-selectbar-count {
+    font-size: var(--fs-xs);
+    font-weight: 620;
+    color: var(--brand);
+}
+
+.iset-selectbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.iset-bar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 550;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.iset-bar-btn .icon { width: 16px; height: 16px; }
+
+.iset-bar-btn:hover { background: rgba(var(--brand-rgb), 0.08); }
+
+.iset-bar-btn.is-primary {
+    background: rgba(var(--brand-rgb), 0.14);
+    color: var(--brand);
+    font-weight: 620;
+}
+
+.iset-bar-btn.is-primary:hover { background: rgba(var(--brand-rgb), 0.2); }
+
+.iset-bar-btn:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+}
+
+/* 点不了的（例如全都已经启用时的「启用」）保持灰掉，和参考图一致 */
+.iset-bar-btn:disabled {
+    color: var(--text-2);
+    opacity: 0.55;
+    cursor: default;
+    background: transparent;
+}
+
+/* 行里的状态徽标不参与收缩，文件名再长也别把它挤没 */
+.iset-mod-row .iso-chip { flex: none; }
+
+/* ── 导出 ──────────────────────────────────────────────── */
+.iset-export-list { gap: 10px; }
+
+.iset-check { align-items: flex-start; }
+
+.iset-check input { margin-top: 2px; }
+
+.iset-check small {
+    display: block;
+    margin-top: 1px;
+    font-size: var(--fs-micro);
+    font-weight: 400;
+    color: var(--text-2);
+}
+
+.iset-check input:disabled { cursor: default; opacity: 0.75; }
+
+/* 导出按钮常驻在可视区底部：内容再长也不至于要滚到底才找得到 */
+.iset-export-foot {
+    position: sticky;
+    bottom: -22px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0 -18px -22px;
+    padding: 12px 18px 16px;
+    border-top: 1px solid var(--line-soft);
+    background: var(--glass-float);
+}
+
+/* ── 版本列表里的收藏标记 / 详情里的描述 ─────────────────── */
+.inst-row-fav {
+    margin-left: 6px;
+    flex: none;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--brand);
+}
+
+.inst-row-name .inst-row-fav + .badge { margin-left: 6px; }
+
+.detail-desc {
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+    line-height: 1.6;
+}
+
+/* ── 窄窗口 ────────────────────────────────────────────── */
+@media (max-width: 880px) {
+    .iset { padding: 0; }
+
+    .iset-window {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+    }
+
+    .iset-body { grid-template-columns: minmax(0, 1fr); }
+
+    .iset-nav {
+        flex-direction: row;
+        gap: 4px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-right: 0;
+        border-bottom: 1px solid var(--line-soft);
+    }
+
+    .iset-nav button { flex: none; }
+
+    .iset-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── 「修改」页：加载器 ─────────────────────────────────────── */
+.iset-loader-now {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: var(--r-sm);
+    background: rgba(var(--brand-rgb), 0.08);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.iset-loader-tag {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--brand);
+    color: var(--on-brand);
+    font-size: var(--fs-xs);
+    font-weight: 650;
+}
+
+.iset-loader-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+/* 「读不到 / 装失败」的说明用错误色，正常提示沿用灰色的 .set-hint */
+.set-hint.is-error { color: var(--m3-error, #b3261e); }
+[data-mode="dark"] .set-hint.is-error { color: #ffb4ab; }
+
+/* 已安装加载器那一列：和 Mod 列表共用行样式，只是不可多选 */
+.iset-mod-row[data-loader-switch] { cursor: pointer; }
+

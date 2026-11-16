@@ -31,11 +31,17 @@
             return;
         }
 
-        host.innerHTML = SL.state.instances.map((inst) => {
+        // 收藏的版本排前面（sorted 是稳定排序，其余保持扫描顺序）
+        host.innerHTML = SL.state.instances.slice()
+            .sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0))
+            .map((inst) => {
             const active = inst.id === ui.activeId;
             const iso = isolationState(inst);
             const chip = SL.state.scanState.loaded
                 ? '<span class="iso-chip ' + iso.tone + '">' + iso.label + '</span>'
+                : '';
+            const fav = inst.favorite
+                ? '<span class="inst-row-fav" title="已收藏" aria-label="已收藏">★</span>'
                 : '';
             const meta = inst.broken
                 ? escapeHtml(inst.error || '无法识别')
@@ -48,12 +54,12 @@
             return '<article class="inst-row' + (active ? ' is-active' : '') + (inst.broken ? ' is-broken' : '') + '" data-instance-row="' + escapeHtml(inst.id) + '" data-kind="' + inst.kind + '" tabindex="0" role="button" aria-pressed="' + active + '" title="' + escapeHtml(inst.path) + '">' +
                 '<span class="inst-row-tile tile--' + inst.tone + '" aria-hidden="true"><svg class="cube"><use href="#i-cube"/></svg></span>' +
                 '<span class="inst-row-main">' +
-                    '<span class="inst-row-name"><span class="inst-row-name-text">' + escapeHtml(inst.name) + '</span><span class="badge">' + escapeHtml(inst.loader) + '</span>' + chip + folderTag + '</span>' +
+                    '<span class="inst-row-name"><span class="inst-row-name-text">' + escapeHtml(inst.name) + '</span>' + fav + '<span class="badge">' + escapeHtml(inst.loader) + '</span>' + chip + folderTag + '</span>' +
                     '<span class="inst-row-meta">' + meta + '</span>' +
                 '</span>' +
                 '<span class="inst-row-side num">' + inst.mem + ' GB</span>' +
-                '<button class="icon-btn inst-row-more" type="button" data-toast="实例操作：设为默认 / 打开目录 / 删除" aria-label="更多操作">' +
-                    '<svg class="icon"><use href="#i-more"/></svg>' +
+                '<button class="icon-btn inst-row-more" type="button" data-inst-settings="' + escapeHtml(inst.id) + '" title="版本设置" aria-label="版本设置">' +
+                    '<svg class="icon"><use href="#i-settings"/></svg>' +
                 '</button>' +
             '</article>';
         }).join('');
@@ -94,9 +100,14 @@
         setText('#vMc', 'Minecraft ' + inst.mc);
         setText('#vLoader', inst.loaderName);
         setText('#vMods', inst.mods > 0 ? inst.mods + ' 个' : '无模组');
-        setText('#vJava', inst.java || '—');
+        setText('#vJava', inst.javaLabel || inst.java || '—');
         setText('#vLast', inst.last);
         setText('#vModsCount', inst.mods > 0 ? inst.mods + ' 个' : '无模组');
+        const descEl = $('#vDesc');
+        if (descEl) {
+            descEl.textContent = inst.description || '';
+            descEl.hidden = !inst.description;
+        }
 
         // 版本隔离：设置要求 vs 目录里实际有的东西
         const iso = isolationState(inst);
@@ -146,7 +157,7 @@
             const inst = getInstance(row.dataset.instanceRow);
             const kindOk = ui.instFilter === 'all' || inst.kind === ui.instFilter;
             const folderOk = folderId === 'all' || inst.dirId === folderId;
-            const text = (inst.name + ' ' + inst.mc + ' ' + inst.loader + ' ' + inst.loaderName).toLowerCase();
+            const text = (inst.name + ' ' + (inst.rawName || '') + ' ' + inst.mc + ' ' + inst.loader + ' ' + inst.loaderName).toLowerCase();
             const show = kindOk && folderOk && (!query || text.indexOf(query) !== -1);
             row.hidden = !show;
             if (show) visible += 1;
@@ -213,22 +224,33 @@
     /** 宿主的一条版本记录 → 页面一直用的实例结构。 */
     function toInstance(version, index) {
         const dirId = version.dirId || '';
-        return {
+        const id = dirId ? dirId + '::' + version.id : version.id;
+        const inst = {
             // 多文件夹合并列表：不同文件夹里可能有同名版本，key 必须带上文件夹
-            id: dirId ? dirId + '::' + version.id : version.id,
+            id: id,
             versionId: version.id,
             name: version.name || version.id,
+            // 用户改过显示名之后，name 是别名，原名留在这里（写设置文件时要用）
+            rawName: version.name || version.id,
             loader: version.loader || 'Vanilla',
             loaderName: version.loaderName || version.loader || 'Vanilla',
             mc: version.mc || '未知',
             mods: Number(version.mods) || 0,
-            mem: instanceMem(dirId ? dirId + '::' + version.id : version.id),
+            mem: instanceMem(id),
             java: version.java ? 'Java ' + version.java : '未知',
             kind: version.kind === 'modded' ? 'modded' : 'vanilla',
+            baseTone: toneFor(version, index),
             tone: toneFor(version, index),
             last: formatLastPlayed(version.lastPlayed),
             path: version.path || '',
             modPreview: Array.isArray(version.modPreview) ? version.modPreview : [],
+            modFiles: Array.isArray(version.modFiles) ? version.modFiles : [],
+            modsPath: version.modsPath || '',
+            // 光影 / 材质包：版本设置里的「光影」「材质包」两页用
+            shaderPackFiles: Array.isArray(version.shaderPackFiles) ? version.shaderPackFiles : [],
+            shaderPacksPath: version.shaderPacksPath || '',
+            resourcePackFiles: Array.isArray(version.resourcePackFiles) ? version.resourcePackFiles : [],
+            resourcePacksPath: version.resourcePacksPath || '',
             isolated: Boolean(version.isolated),
             isolatedByPolicy: Boolean(version.isolatedByPolicy),
             mismatch: Boolean(version.mismatch),
@@ -242,11 +264,25 @@
             dirId,
             dirPath: version.dirPath || '',
             dirName: version.dirName || '',
-            dirIsolation: version.dirIsolation || 'all'
+            dirIsolation: version.dirIsolation || 'all',
+            // 版本目录里的 StarLaunch.instance.json（null = 全部跟随全局）
+            settings: version.settings && typeof version.settings === 'object' ? version.settings : null,
+            description: '',
+            favorite: false
         };
+
+        // 显示名 / 配色 / 收藏 / 内存 / Java 由 19-instance 统一合并
+        const mod = SL.core.mod('instance');
+        if (typeof mod.applyToInstance === 'function') mod.applyToInstance(inst);
+        return inst;
     }
 
     function instanceMem(id) {
+        // 实例设置里的内存优先（19-instance.js），没有就走全局默认值
+        const instMod = SL.core.mod('instance');
+        if (typeof instMod.memoryOf === 'function') {
+            return instMod.memoryOf({ id: id, settings: null });
+        }
         const table = ui.instanceMem || {};
         const saved = Number(table[id]);
         if (saved > 0) return saved;
@@ -293,6 +329,11 @@
         setText('#vFolder', '—');
         setText('#vSize', '—');
         setText('#vType', '—');
+        const desc = $('#vDesc');
+        if (desc) {
+            desc.textContent = '';
+            desc.hidden = true;
+        }
 
         const isoEl = $('#vIsolation');
         if (isoEl) {
@@ -313,7 +354,12 @@
         const count = $('#instCount');
         if (count) count.textContent = '0 个';
         const memText = $('#curMemText');
-        if (memText) memText.textContent = (Number(launchPrefs.mem) || 8) + ' / 32 GB';
+        if (memText) {
+            // 总量走主页那份真实读数，别再写死 32 GB
+            const homeMod = SL.core.mod('home');
+            const total = homeMod && typeof homeMod.totalText === 'function' ? homeMod.totalText() : '';
+            memText.textContent = (Number(launchPrefs.mem) || 8) + ' / ' + (total || '本机内存');
+        }
     }
 
     function isolationLabel() {
@@ -447,6 +493,15 @@
         const instList = $('#instList');
         if (instList) {
             instList.addEventListener('click', (event) => {
+                const settingsBtn = event.target.closest('[data-inst-settings]');
+                if (settingsBtn) {
+                    event.preventDefault();
+                    const instMod = SL.core.mod('instance');
+                    if (typeof instMod.openInstanceSettings === 'function') {
+                        instMod.openInstanceSettings(settingsBtn.dataset.instSettings);
+                    }
+                    return;
+                }
                 if (event.target.closest('[data-toast]')) return;
                 const row = event.target.closest('[data-instance-row]');
                 if (row) selectInstance(row.dataset.instanceRow);

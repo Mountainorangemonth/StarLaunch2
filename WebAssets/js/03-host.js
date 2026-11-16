@@ -173,6 +173,74 @@
         notice('打不开这个位置', message);
     }
 
+    /* -----------------------------------------------------------------
+       一问一答（request / reply）
+       -----------------------------------------------------------------
+       宿主那边的「查询类」动作都走这一个通道，省得每种消息各写一遍回调：
+         const list = await SL.host.request('java-list', { refresh: true });
+       宿主回 { type: 'reply', id, ok, data, error }，成功 resolve(data)，
+       失败 reject(Error)。超时按「启动器没有响应」处理。
+       ----------------------------------------------------------------- */
+    const REQUEST_TIMEOUT = 20000;
+    const pendingRequests = new Map();
+    let requestSeq = 0;
+
+    function request(type, payload, timeout) {
+        return new Promise((resolve, reject) => {
+            if (!hasHost()) {
+                reject(new Error('只有启动器里才能做这件事'));
+                return;
+            }
+
+            const id = 'r' + (++requestSeq);
+            const timer = window.setTimeout(() => {
+                pendingRequests.delete(id);
+                reject(new Error('启动器没有响应'));
+            }, timeout || REQUEST_TIMEOUT);
+
+            pendingRequests.set(id, { resolve: resolve, reject: reject, timer: timer });
+
+            if (!hostPost(Object.assign({ type: type, id: id }, payload || {}))) {
+                window.clearTimeout(timer);
+                pendingRequests.delete(id);
+                reject(new Error('消息发不出去，宿主连接可能断了'));
+            }
+        });
+    }
+
+    function settleReply(data) {
+        const id = data.id == null ? '' : String(data.id);
+        const pending = pendingRequests.get(id);
+        if (!pending) return;
+
+        window.clearTimeout(pending.timer);
+        pendingRequests.delete(id);
+
+        if (data.ok) pending.resolve(data.data);
+        else pending.reject(new Error(data.error || '操作失败'));
+    }
+
+    /* 宿主启动了「检查更新」并发现新版本：用一个浮层问一句，不打断用户 */
+    let updateNotified = false;
+    function onUpdateAvailable(data) {
+        if (updateNotified || !data || !data.latest) return;
+        updateNotified = true;
+
+        const message = '当前版本 ' + (data.current || '未知') + '，最新版本 ' + data.latest + '。\n\n要打开下载页吗？';
+        if (typeof uiMod.dialog !== 'function') {
+            toast('发现新版本 ' + data.latest, 'i-download');
+            return;
+        }
+        uiMod.dialog({
+            title: '发现新版本',
+            message: message,
+            okLabel: '打开下载页',
+            cancelLabel: '以后再说'
+        }).then((confirmed) => {
+            if (confirmed && data.url) openLocation('open-external', { url: data.url }, '下载页');
+        }, () => { });
+    }
+
     function onHostError(data) {
         notice(data.title || '启动器出错了', data.message || '没有更多信息');
     }
@@ -189,6 +257,8 @@
             }
             if (!data || typeof data.type !== 'string') return;
             if (data.type === 'open-result') settleOpen(data);
+            else if (data.type === 'reply') settleReply(data);
+            else if (data.type === 'update-available') onUpdateAvailable(data);
             else if (data.type === 'host-error') onHostError(data);
             else if (data.type === 'restart-result' && !data.ok) {
                 notice('没能以普通权限重启', data.error || '系统没有给出原因');
@@ -260,6 +330,6 @@
 
     SL.host = Object.assign(SL.host || {}, {
         handleWindowControl, detectHost, hostPost, hasHost, bindHost, confirmDialog,
-        openLocation, settleOpen, notice
+        openLocation, settleOpen, notice, request, settleReply
     });
 })(window);

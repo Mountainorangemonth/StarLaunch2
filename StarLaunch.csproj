@@ -34,11 +34,34 @@
 
 		<!-- 开发时放进 wallpapers 的图片会复制到输出目录，方便直接看效果。
 		     用 Update 而不是 Include，避免和 SDK 默认 None 项重复。 -->
-		<None Update="wallpapers\**\*" CopyToOutputDirectory="PreserveNewest" />
+		<!-- 开发时复制到输出目录方便看效果；发布时不带（运行时宿主会自己建这个文件夹） -->
+		<None Update="wallpapers\**\*" CopyToOutputDirectory="PreserveNewest"
+		      Condition="'$(_IsPublishing)' != 'true'" />
 	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
   </ItemGroup>
+
+  <!-- 发布默认走单文件：只要在跑 dotnet publish，就自动带上这套参数，
+       不用再记 -p:PublishSingleFile=true 之类的开关。
+       Condition 只在发布时成立（dotnet build / VS 的「生成」不受影响，
+       调试时还是普通的 bin\Debug 输出，热重载和断点照常）。
+
+       几项的取舍：
+         IncludeNativeLibrariesForSelfExtract  WebView2 的原生库塞不进 exe 映像，
+                                               运行时解到 %TEMP%\.net，缺了它就报找不到 DLL
+         EnableCompressionInSingleFile         138 MB → 63 MB，换几百毫秒解压时间
+         DebugType=none                        发布版不带 pdb
+       绝对不要开 PublishTrimmed：WPF / WebView2 大量走反射，裁剪后运行时才炸。 -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
 
 </Project>

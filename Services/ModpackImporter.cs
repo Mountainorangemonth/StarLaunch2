@@ -8,6 +8,16 @@ using System.Text.Json;
 
 namespace StarLaunch.Services
 {
+    /// <summary>整合包里「清单写了 URL，但压缩包本身没带」的文件（Modrinth 的 .mrpack 就是这样）。</summary>
+    internal sealed class ModpackPendingFile
+    {
+        /// <summary>相对版本目录的路径，例如 mods/sodium-0.5.13.jar。</summary>
+        public string Path { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public string? Sha1 { get; set; }
+        public long Size { get; set; }
+    }
+
     /// <summary>导入结果：成功时给网页一句能直接 toast 的话，失败时给原因。</summary>
     internal sealed class ModpackImportResult
     {
@@ -15,6 +25,16 @@ namespace StarLaunch.Services
         public string? Error { get; set; }
         public string? Name { get; set; }
         public string? Message { get; set; }
+
+        /// <summary>落成的版本目录（清单式整合包才有）。</summary>
+        public string? VersionDir { get; set; }
+
+        /// <summary>清单里声明的原版版本号 / 加载器坐标（用来提示还差什么）。</summary>
+        public string? MinecraftVersion { get; set; }
+        public string? LoaderCoordinate { get; set; }
+
+        /// <summary>需要联网补下的文件（宿主下载队列会接着下）。</summary>
+        public List<ModpackPendingFile> PendingFiles { get; } = new List<ModpackPendingFile>();
     }
 
     /// <summary>
@@ -120,7 +140,6 @@ namespace StarLaunch.Services
             string? name = null;
             string? mcVersion = null;
             string? loaderCoordinate = null;
-            int pendingDownloads = 0;
 
             try
             {
@@ -148,10 +167,44 @@ namespace StarLaunch.Services
                         loaderCoordinate = LoaderCoordinate(deps);
                     }
 
+                    // .mrpack 里的文件不随压缩包分发，只有下载地址：先记下来，宿主下完再补进去
                     if (rootElement.TryGetProperty("files", out var files) &&
                         files.ValueKind == JsonValueKind.Array)
                     {
-                        pendingDownloads = files.GetArrayLength();
+                        foreach (var file in files.EnumerateArray())
+                        {
+                            string? relative = ReadString(file, "path");
+                            string? url = ReadFirstDownload(file);
+                            if (string.IsNullOrWhiteSpace(relative) || string.IsNullOrWhiteSpace(url)) continue;
+
+                            // env.client = unsupported 的是服务端专用文件
+                            if (file.TryGetProperty("env", out var env) && env.ValueKind == JsonValueKind.Object &&
+                                string.Equals(ReadString(env, "client"), "unsupported", StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            string sha1 = string.Empty;
+                            if (file.TryGetProperty("hashes", out var hashes) && hashes.ValueKind == JsonValueKind.Object)
+                            {
+                                sha1 = ReadString(hashes, "sha1") ?? string.Empty;
+                            }
+
+                            long size = 0;
+                            if (file.TryGetProperty("fileSize", out var fileSize) &&
+                                fileSize.ValueKind == JsonValueKind.Number)
+                            {
+                                fileSize.TryGetInt64(out size);
+                            }
+
+                            result.PendingFiles.Add(new ModpackPendingFile
+                            {
+                                Path = relative!.Replace('\\', '/'),
+                                Url = url!,
+                                Sha1 = sha1.Length > 0 ? sha1 : null,
+                                Size = size
+                            });
+                        }
                     }
                 }
                 else
@@ -192,6 +245,9 @@ namespace StarLaunch.Services
             {
                 GameDirs.Ensure(gameDir);
                 Directory.CreateDirectory(versionDir);
+                result.VersionDir = versionDir;
+                result.MinecraftVersion = mcVersion;
+                result.LoaderCoordinate = loaderCoordinate;
 
                 // overrides（CurseForge）或 overrides / client-overrides（Modrinth）里的文件属于这个实例
                 int copied = 0;
@@ -221,7 +277,10 @@ namespace StarLaunch.Services
                 var note = new List<string>();
                 if (!string.IsNullOrWhiteSpace(mcVersion)) note.Add("Minecraft " + mcVersion);
                 if (!string.IsNullOrWhiteSpace(loaderCoordinate)) note.Add(loaderCoordinate!);
-                if (pendingDownloads > 0) note.Add(pendingDownloads.ToString(CultureInfo.InvariantCulture) + " 个文件需要联网补下载");
+                if (result.PendingFiles.Count > 0)
+                {
+                    note.Add(result.PendingFiles.Count.ToString(CultureInfo.InvariantCulture) + " 个文件需要联网补下载");
+                }
 
                 result.Message = "已导入「" + versionName + "」到 " + versionDir +
                     (note.Count > 0 ? "（" + string.Join(" · ", note) + "）" : string.Empty) +
@@ -443,6 +502,18 @@ namespace StarLaunch.Services
             string cleaned = new string(chars).Trim().TrimEnd('.');
             if (cleaned.Length > 60) cleaned = cleaned.Substring(0, 60).Trim();
             return cleaned.Length == 0 ? "导入的整合包" : cleaned;
+        }
+
+        /// <summary>downloads 数组里的第一个地址（Modrinth 的清单就是这么写的）。</summary>
+        private static string? ReadFirstDownload(JsonElement element)
+        {
+            if (!element.TryGetProperty("downloads", out var downloads) ||
+                downloads.ValueKind != JsonValueKind.Array || downloads.GetArrayLength() == 0)
+            {
+                return null;
+            }
+            var first = downloads[0];
+            return first.ValueKind == JsonValueKind.String ? first.GetString() : null;
         }
 
         private static string? ReadString(JsonElement element, string property)

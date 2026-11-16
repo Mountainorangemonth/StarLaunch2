@@ -254,6 +254,43 @@ namespace StarLaunch.Services
         /// 属性初始值设定项里的裸名会先绑定到这个属性上（CS0236）。
         /// </remarks>
         public string Isolation { get; set; } = StarLaunch.Services.GameDirs.IsolationAll;
+
+        /// <summary>
+        /// 微软登录用的 Azure 应用 ID（client_id）。环境变量 MS_CLIENT_ID 优先。
+        /// 留空时登录页会给出注册指引，不做任何隐式兜底。
+        /// </summary>
+        public string? MsClientId { get; set; }
+
+        /// <summary>
+        /// 微软登录的 authority（租户）。应用只允许组织帐户时就必须填租户域，
+        /// 例如 contoso.onmicrosoft.com 或租户 ID；「任何组织目录 + 个人」留空即可。
+        /// </summary>
+        public string? MsAuthority { get; set; }
+
+        /// <summary>下载源：bmclapi（国内镜像）/ official（Mojang 官方）。</summary>
+        public string DownloadMirror { get; set; } = "bmclapi";
+
+        /// <summary>社区资源下载源：auto（官方优先，失败换镜像）/ mcim / official。</summary>
+        public string? DownloadModrinth { get; set; } = "auto";
+
+        /* ---- 宿主侧行为（设置页里那几个开关会写到这里） ---- */
+
+        /// <summary>关窗口时最小化到托盘，而不是退出程序。</summary>
+        public bool CloseToTray { get; set; }
+
+        /// <summary>记住上次的窗口尺寸。</summary>
+        public bool RememberWindowSize { get; set; } = true;
+
+        /// <summary>自动清理安装缓存：%TEMP% 里超过 7 天的 StarLaunch-* 临时文件。</summary>
+        public bool CleanInstallCache { get; set; } = true;
+
+        /// <summary>启动时检查启动器更新。</summary>
+        public bool CheckLauncherUpdate { get; set; } = true;
+
+        /// <summary>上次关闭窗口时的宽高（记住窗口尺寸时用来恢复）。</summary>
+        public double WindowWidth { get; set; }
+
+        public double WindowHeight { get; set; }
     }
 
     /// <summary>StarLaunch.config.json 的读写。exe 同级不可写时退回 %LOCALAPPDATA%\StarLaunch。</summary>
@@ -340,6 +377,25 @@ namespace StarLaunch.Services
         private static LauncherConfig Normalize(LauncherConfig config)
         {
             config.Isolation = GameDirs.Normalize(config.Isolation);
+
+            // 下载源只认两种，其它值一律回到国内镜像
+            config.DownloadMirror = string.Equals(config.DownloadMirror, "official", StringComparison.OrdinalIgnoreCase)
+                ? "official"
+                : "bmclapi";
+
+            // 社区资源源只认三种，其它值一律回到「自动」
+            string modrinth = (config.DownloadModrinth ?? string.Empty).Trim().ToLowerInvariant();
+            config.DownloadModrinth = modrinth == "mcim" || modrinth == "official" ? modrinth : "auto";
+            config.MsClientId = (config.MsClientId ?? string.Empty).Trim();
+        // 手填的值如果和内置身份一模一样，就别在配置文件里留一份（界面也会误判成「你自己的应用」）
+        if (string.Equals(config.MsClientId, AccountService.BuiltInClientId, StringComparison.OrdinalIgnoreCase))
+        {
+            config.MsClientId = string.Empty;
+        }
+
+            // 窗口尺寸只认合理范围：手改配置写成 999999 也不会把窗口顶出屏幕
+            if (config.WindowWidth < 640 || config.WindowWidth > 10000) config.WindowWidth = 0;
+            if (config.WindowHeight < 480 || config.WindowHeight > 10000) config.WindowHeight = 0;
 
             if (config.GameDirs == null) config.GameDirs = new List<GameDirEntry>();
 

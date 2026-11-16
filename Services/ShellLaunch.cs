@@ -18,7 +18,8 @@
 
    所以现在改成「把请求交给已经在跑的那个资源管理器」，不新建进程：
        1. SHParseDisplayName + SHOpenFolderAndSelectItems（shell 自带 API，
-          和资源管理器里「在文件夹中显示」是一回事）；
+          和资源管理器里「在文件夹中显示」是一回事；注意 cidl 要给 1，
+          否则打开的是父目录，见 BrowseInShell 里的注释）；
        2. Shell.Application 的 Explore（老式 COM 入口，兜底）；
        3. 系统关联 ShellExecute（最后手段；管理员身份运行时跳过，Windows
           不允许提权进程去驱动资源管理器）。
@@ -215,6 +216,7 @@ namespace StarLaunch.Services
         private static string? BrowseInShell(string path)
         {
             IntPtr pidl = IntPtr.Zero;
+            IntPtr items = IntPtr.Zero;
             try
             {
                 int hr = SHParseDisplayName(path, IntPtr.Zero, out pidl, 0, out _);
@@ -223,7 +225,17 @@ namespace StarLaunch.Services
                     return "解析路径失败（0x" + hr.ToString("X8") + "）";
                 }
 
-                int opened = SHOpenFolderAndSelectItems(pidl, 0, IntPtr.Zero, 0);
+                // 关键：cidl 必须给 1，并且把目标自身当作「要在里面选中的那一项」。
+                //
+                // 文档里写的用法（cidl = 0、apidl = NULL）语义是「打开**父目录**并在里面
+                // 选中这个项目」—— 对一个文件夹来说，就是把它的上一层打开、把文件夹本身
+                // 选成高亮。于是「打开 versions\1.21.11-Forge_61.2.1」变成了打开 versions，
+                // 「打开 mods」变成了打开版本目录，用户看到的就是「打开位置不对」。
+                // 把文件夹自己的 PIDL 当子项传进去，shell 才会进到文件夹里面去。
+                items = Marshal.AllocHGlobal(IntPtr.Size);
+                Marshal.WriteIntPtr(items, pidl);
+
+                int opened = SHOpenFolderAndSelectItems(pidl, 1, items, 0);
                 if (opened != 0) return "打开失败（0x" + opened.ToString("X8") + "）";
                 return null;
             }
@@ -233,6 +245,10 @@ namespace StarLaunch.Services
             }
             finally
             {
+                if (items != IntPtr.Zero)
+                {
+                    try { Marshal.FreeHGlobal(items); } catch (Exception) { /* 释放失败无所谓 */ }
+                }
                 if (pidl != IntPtr.Zero)
                 {
                     try { ILFree(pidl); } catch (Exception) { /* 释放失败无所谓 */ }

@@ -171,6 +171,8 @@
     function renderLastLogin() {
         const el = $('#acctLast');
         if (!el) return;
+        // 账户模块已经用真实档案渲染过「上次登录」时，这里不要覆盖它
+        if (el.dataset.source === 'account') return;
         let last = 0;
         try { last = Number(window.localStorage.getItem(LAST_LOGIN_KEY)) || 0; } catch (e) { last = 0; }
         el.textContent = formatLoginTime(last || Date.now());

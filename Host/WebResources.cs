@@ -88,6 +88,32 @@ namespace StarLaunch
                     return;
                 }
 
+                // 账户：列表 / 皮肤头像
+                if (uri.AbsolutePath.Equals("/api/accounts", StringComparison.OrdinalIgnoreCase))
+                {
+                    RespondAccounts(e);
+                    return;
+                }
+                if (uri.AbsolutePath.Equals("/api/skin", StringComparison.OrdinalIgnoreCase))
+                {
+                    RespondSkinAsync(e, uri);
+                    return;
+                }
+
+                // 版本资源（Mod / 材质包 / 光影）自己的图标
+                if (uri.AbsolutePath.Equals("/api/asset-icon", StringComparison.OrdinalIgnoreCase))
+                {
+                    RespondAssetIcon(e, uri);
+                    return;
+                }
+
+                // 下载：原版版本清单 / Modrinth 搜索与文件列表 / 下载源设置
+                if (uri.AbsolutePath.StartsWith("/api/download/", StringComparison.OrdinalIgnoreCase))
+                {
+                    RespondDownloadApi(e, uri);
+                    return;
+                }
+
                 RespondJson(e, 404, new { ok = false, error = "未知接口：" + uri.AbsolutePath });
             }
             catch (Exception ex)

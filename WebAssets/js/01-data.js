@@ -260,7 +260,66 @@
         }
     };
 
+
+    /* -----------------------------------------------------------------
+       常见 Mod 的中文名
+       -----------------------------------------------------------------
+       Modrinth 只有英文标题（接口里没有译名字段，MCIM 镜像也只是缓存英文），
+       所以这里手写一份常用译名：key = Modrinth 的 slug，value = 简体中文名。
+       没收录的照原样显示英文 —— 宁可显示英文，也不要瞎翻。
+       想补直接往这里加一行，改完刷新页面就生效。
+       ----------------------------------------------------------------- */
+    const MOD_NAMES_ZH = {
+        'sodium': '钠',
+        'sodium-extra': '钠 · 扩展',
+        'lithium': '锂',
+        'phosphor': '磷',
+        'indium': '铟',
+        'krypton': '氪',
+        'create': '机械动力',
+        'createaddition': '机械动力：附加',
+        'ae2': '应用能源 2',
+        'applied-energistics-2': '应用能源 2',
+        'botania': '植物魔法',
+        'twilightforest': '暮色森林',
+        'twilight-forest': '暮色森林',
+        'mekanism': '通用机械',
+        'immersive-engineering': '沉浸工程',
+        'ic2': '工业时代 2',
+        'industrial-craft': '工业时代 2',
+        'tinkers-construct': '匠魂',
+        'tconstruct': '匠魂',
+        'farmers-delight': '农夫乐事',
+        'appleskin': '苹果皮',
+        'jei': 'JEI 物品管理器',
+        'roughly-enough-items': 'REI 物品管理器',
+        'emi': 'EMI 物品管理器',
+        'journeymap': '旅行地图',
+        'xaeros-minimap': 'Xaero 的小地图',
+        'xaeros-world-map': 'Xaero 的世界地图',
+        'patchouli': '帕秋莉手册',
+        'better-combat': '更好的战斗',
+        'epic-fight-mod': '史诗战斗',
+        'distant-horizons': '遥远的地平线',
+        'simple-voice-chat': '简单语音',
+        'biomes-o-plenty': '超多生物群系',
+        'biomesoplenty': '超多生物群系',
+        'serene-seasons': '静谧四季',
+        'waystones': '传送石碑',
+        'apotheosis': '神化',
+        'mystical-agriculture': '神秘农业',
+        'blood-magic': '血魔法',
+        'draconic-evolution': '龙之研究',
+        'pams-harvestcraft': '潘马斯农场',
+        'carry-on': '搬运',
+        'wthit': '这是什么鬼',
+        'memoryleakfix': '内存泄漏修复',
+        'ferrite-core': '铁氧体核心',
+        'chunky': '区块预生成',
+        'optifine': '高清修复'
+    };
+
     const CATALOG_PAGE_SIZE = 10;
 
-    SL.data = Object.assign(SL.data || {}, { MOCK_INSTANCES, QUOTES, ROUTES, QUEUE_SEED, VERSION_GROUPS, VERSIONS, LATEST_VERSION_IDS, MODS, MODPACKS, RESOURCES, SHADERS, CATALOG, LOADER_TYPES, CATALOG_META, CATALOG_PAGE_SIZE });
+    SL.data = Object.assign(SL.data || {}, { MOCK_INSTANCES, QUOTES, ROUTES, QUEUE_SEED, VERSION_GROUPS, VERSIONS, LATEST_VERSION_IDS, MODS, MODPACKS, RESOURCES, SHADERS, CATALOG, LOADER_TYPES, CATALOG_META, CATALOG_PAGE_SIZE, MOD_NAMES_ZH });
 })(window);

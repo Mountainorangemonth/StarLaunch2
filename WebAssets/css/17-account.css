@@ -1,0 +1,291 @@
+/* =====================================================================
+   StarLaunch · 账户
+   ---------------------------------------------------------------------
+   皮肤头像、主页账户卡的小标签、账户菜单里的账号行、登录浮层。
+
+   材质约定和项目其它控件一致：扁平 --glass 底 + 8px 圆角 + 1px 细描边，
+   只有浮层（.modal-card）用厚材质和模糊。
+   皮肤头像是 64×64 的 PNG，用 background-size:800% 放大，只取头部那 8×8，
+   所以必须 image-rendering: pixelated，否则会糊成一团。
+   ===================================================================== */
+
+/* ════════════════════════════════════════════════════════════════
+   1. 皮肤头像
+   ════════════════════════════════════════════════════════════════ */
+.avatar-skin {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-size: 800% 800%;
+    /* 头部在皮肤图的 (8,8)，放大 8 倍后刚好是一格：8 / (64 - 8) ≈ 14.2857% */
+    background-position: 14.2857% 14.2857%;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+}
+
+/* 第二层（帽子 / 头发）：在 (40,8)，即向左 5 格 */
+.avatar-skin::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: inherit;
+    background-size: 800% 800%;
+    background-position: 71.4286% 14.2857%;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+}
+
+.avatar-skin[hidden] { display: none; }
+
+/* 主页账户卡里的圆环头像：SVG 兜底和皮肤贴图必须叠在同一格里，
+   否则 .avatar--ring 是 grid 容器，两个子元素会各占一行，头像就掉到圆环下面了 */
+.avatar--ring > .skin,
+.avatar--ring > .avatar-skin { grid-area: 1 / 1; }
+
+.avatar--ring .avatar-skin {
+    position: relative;
+    display: block;
+    width: 30px;
+    height: 30px;
+    margin: 0 auto;
+    top: 2px;
+    border-radius: 9px;
+}
+
+/* 账户菜单里的账号行：小一号 */
+.avatar--xs {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    box-shadow: none;
+    flex: none;
+}
+
+.avatar--xs .skin { border-radius: inherit; }
+
+/* ════════════════════════════════════════════════════════════════
+   2. 主页账户卡
+   ════════════════════════════════════════════════════════════════ */
+.acct-tags { display: flex; flex-wrap: wrap; gap: 5px; min-height: 20px; }
+
+.acct-tag {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(var(--brand-rgb), 0.1);
+    color: var(--text-2);
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.acct-tag--brand { background: rgba(var(--brand-rgb), 0.16); color: var(--brand); }
+.acct-tag--warn { background: rgba(196, 92, 75, 0.16); color: #b5503f; }
+
+[data-mode="dark"] .acct-tag--warn { color: #ffb4a4; }
+
+.acct-stats dd.is-ok { color: var(--brand); }
+.acct-stats dd.is-warn { color: #b5503f; }
+
+[data-mode="dark"] .acct-stats dd.is-warn { color: #ffb4a4; }
+
+/* ════════════════════════════════════════════════════════════════
+   3. 账户菜单（浮层里由 JS 重建内容）
+   ════════════════════════════════════════════════════════════════ */
+.pop-account { gap: 9px; }
+
+.pop-account-copy { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.pop-account-copy b { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pop-account-copy small { font-size: var(--fs-micro); color: var(--text-2); }
+.pop-account.is-active { background: rgba(var(--brand-rgb), 0.1); }
+.pop-account.is-active .pop-account-copy b { color: var(--brand); }
+.pop-account .icon { color: var(--brand); }
+
+.pop-item--danger .icon { color: #b5503f; }
+.pop-item--danger:hover { background: rgba(196, 92, 75, 0.12); }
+.pop-item--danger span { color: #b5503f; }
+
+[data-mode="dark"] .pop-item--danger .icon,
+[data-mode="dark"] .pop-item--danger span { color: #ffb4a4; }
+
+.chip-plain {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(var(--shadow-rgb), 0.08);
+    color: var(--text-2);
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+[data-mode="dark"] .chip-plain { background: rgba(255, 255, 255, 0.1); }
+
+/* ════════════════════════════════════════════════════════════════
+   4. 登录浮层
+   ════════════════════════════════════════════════════════════════ */
+.login-modal { z-index: 130; }
+
+.login-card { width: min(460px, 100%); display: flex; flex-direction: column; gap: 14px; }
+
+.login-head { display: flex; align-items: flex-start; gap: 12px; }
+
+.login-mark {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+    background: var(--brand);
+    color: var(--on-brand);
+    box-shadow: 0 4px 14px rgba(var(--brand-rgb), 0.32);
+}
+
+.login-mark .icon { width: 17px; height: 17px; }
+
+.login-copy { flex: 1; min-width: 0; }
+.login-copy h2 { margin: 1px 0 2px; font-size: 17px; font-weight: 680; letter-spacing: -0.01em; }
+.login-copy p { margin: 0; font-size: var(--fs-xs); color: var(--text-2); line-height: 1.55; }
+
+.login-tabs { width: 100%; }
+.login-tabs button { flex: 1; justify-content: center; }
+
+.login-pane { display: none; flex-direction: column; gap: 10px; }
+.login-pane.is-active { display: flex; }
+
+.login-field { display: flex; flex-direction: column; gap: 5px; }
+.login-field > span { font-size: var(--fs-xs); color: var(--text-2); }
+
+.login-field input {
+    width: 100%;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: var(--glass);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-sm);
+    transition: box-shadow var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+
+.login-field input:hover { background: var(--glass-strong); }
+.login-field input:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 1.5px rgba(var(--brand-rgb), 0.6);
+}
+
+.login-field input::placeholder { color: var(--text-2); opacity: 0.7; }
+
+.login-field input::-webkit-calendar-picker-indicator { opacity: 0.45; cursor: pointer; }
+.login-field small { font-size: var(--fs-micro); color: var(--text-2); line-height: 1.5; }
+
+.login-note {
+    padding: 11px 12px;
+    border-radius: var(--r-sm);
+    background: rgba(var(--brand-rgb), 0.09);
+    box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), 0.16);
+}
+
+.login-note b { display: block; font-size: var(--fs-sm); font-weight: 640; margin-bottom: 3px; }
+
+.login-note-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 2px; }
+
+.login-note-actions .link { font-size: var(--fs-xs); color: var(--brand); }
+
+.login-foot-note {
+    margin: 0;
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+    line-height: 1.55;
+    word-break: break-all;
+}
+
+.login-note p { margin: 0 0 6px; font-size: var(--fs-xs); color: var(--text-2); line-height: 1.6; }
+.login-note .link { font-size: var(--fs-xs); }
+
+.login-code {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    padding: 14px 12px;
+    border-radius: var(--r-sm);
+    background: rgba(var(--brand-rgb), 0.08);
+    box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), 0.18);
+}
+
+.login-code-hint { font-size: var(--fs-xs); color: var(--text-2); text-align: center; }
+
+.login-code-value {
+    font-family: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--brand);
+    line-height: 1.2;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.login-code-actions { display: flex; gap: 8px; }
+
+.login-code-link {
+    font-size: var(--fs-micro);
+    color: var(--text-2);
+    word-break: break-all;
+    text-align: center;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.login-status { margin: 0; font-size: var(--fs-xs); color: var(--text-2); line-height: 1.55; }
+.login-status.is-warn { color: #b5503f; }
+
+[data-mode="dark"] .login-status.is-warn { color: #ffb4a4; }
+
+.login-cancel { align-self: center; font-size: var(--fs-xs); }
+
+.login-profiles { display: flex; flex-direction: column; gap: 7px; }
+
+.login-profile-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.login-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px 7px 8px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: var(--glass);
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-sm);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.login-profile:hover {
+    background: var(--glass-strong);
+    box-shadow: inset 0 0 0 1.5px rgba(var(--brand-rgb), 0.5);
+}
+
+.login-profile-face {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    overflow: hidden;
+    background: rgba(var(--brand-rgb), 0.12);
+}
+
+.login-profile-face .skin { width: 100%; height: 100%; }
+
+/* 窄屏：登录卡片贴着窗口，别被裁掉 */
+@media (max-width: 720px) {
+    .login-card { width: 100%; }
+    .login-code-value { font-size: 22px; }
+}

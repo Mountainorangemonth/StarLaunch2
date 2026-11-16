@@ -38,6 +38,13 @@
     font-weight: 650;
 }
 
+/* 比上周少的时候用错误色（和 .btn-danger 同一套令牌） */
+.delta.is-down {
+    background: rgba(var(--m3-error-rgb, 179, 38, 30), 0.12);
+    color: var(--m3-error, #b3261e);
+}
+[data-mode="dark"] .delta.is-down { color: #ffb4ab; }
+
 /* 体素柱：每根柱子是一叠方块，顶部有一条高光 —— 青金石块的堆法 */
 .week-chart {
     display: flex;

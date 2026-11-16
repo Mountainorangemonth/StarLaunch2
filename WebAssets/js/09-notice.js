@@ -402,11 +402,41 @@
         list.scrollTop = list.scrollHeight;
     }
 
+    /* 启动日志的写入口
+       -----------------------------------------------------------------
+       宿主的日志是 150ms 一批推过来的，游戏起来后一秒能有几百行。
+       逐行 renderLaunchLog() 会把整块 DOM 重画几百遍，界面直接卡住；
+       这里改成「先攒着，下一帧画一次」，计数也跟着省下来。 */
+    let launchLogPending = false;
+
+    function flushLaunchLog() {
+        if (!launchLogPending) return;
+        launchLogPending = false;
+        writeStore(STORE.launchLog, launchLog);
+        renderLaunchLog();
+    }
+
     function recordLaunchLog(line) {
         launchLog.push({ t: Date.now(), line: String(line) });
         while (launchLog.length > 300) launchLog.shift();
-        writeStore(STORE.launchLog, launchLog);
-        renderLaunchLog();
+        if (launchLogPending) return;
+        launchLogPending = true;
+        window.requestAnimationFrame(flushLaunchLog);
+    }
+
+    function recordLaunchLogLines(lines) {
+        if (!lines) return;
+        const list = Array.isArray(lines) ? lines : [String(lines)];
+        list.forEach((line) => {
+            if (line == null) return;
+            const text = String(line);
+            if (!text) return;
+            launchLog.push({ t: Date.now(), line: text });
+        });
+        while (launchLog.length > 300) launchLog.shift();
+        if (launchLogPending) return;
+        launchLogPending = true;
+        window.requestAnimationFrame(flushLaunchLog);
     }
 
     function clearLaunchLog() {
@@ -721,5 +751,5 @@
         noticeSilentReload = Boolean(value);
     }
 
-    SL.notice = Object.assign(SL.notice || {}, { setSilentReload, noticePrefs, launchLog, NOTICE_FORMAT_LABEL, saveNoticePrefs, noticeFormatFromPath, mdInline, renderMarkdown, renderXamlInto, applyCustomHome, loadCustomHome, noticeIsCustom, getNoticeIds, readNoticeIds, noticesAllRead, markAllNoticesRead, restoreNoticeUnread, initNoticeView, renderNoticeBody, showNoticeCustom, showNoticeDefault, formatLogTime, renderLaunchLog, recordLaunchLog, clearLaunchLog, renderNoticeSettings, scheduleNoticeSave, setNoticeFile, pickNoticeFile, reloadNoticeFile, openNoticeSettings, bindNotice });
+    SL.notice = Object.assign(SL.notice || {}, { setSilentReload, noticePrefs, launchLog, recordLaunchLog, recordLaunchLogLines, flushLaunchLog, NOTICE_FORMAT_LABEL, saveNoticePrefs, noticeFormatFromPath, mdInline, renderMarkdown, renderXamlInto, applyCustomHome, loadCustomHome, noticeIsCustom, getNoticeIds, readNoticeIds, noticesAllRead, markAllNoticesRead, restoreNoticeUnread, initNoticeView, renderNoticeBody, showNoticeCustom, showNoticeDefault, formatLogTime, renderLaunchLog, recordLaunchLog, clearLaunchLog, renderNoticeSettings, scheduleNoticeSave, setNoticeFile, pickNoticeFile, reloadNoticeFile, openNoticeSettings, bindNotice });
 })(window);

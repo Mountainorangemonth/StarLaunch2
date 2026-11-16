@@ -161,6 +161,17 @@
 .quick:hover { background: rgba(var(--brand-rgb), 0.12); color: var(--text); }
 .quick:active { transform: scale(0.95); }
 
+/* 「优化中…」：别让按钮看起来还能点，也别加填充面，只压一点透明度 */
+.quick:disabled { opacity: 0.55; cursor: default; }
+.quick:disabled:hover { background: var(--glass-weak); color: var(--text-2); }
+.quick:disabled:active { transform: none; }
+.quick.is-busy .icon { animation: quick-spin 1s linear infinite; }
+
+@keyframes quick-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* 主视觉：浮空的体素小岛（不用渐变球） */
 .hero-art {
     position: relative;

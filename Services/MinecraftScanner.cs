@@ -35,6 +35,30 @@ namespace StarLaunch.Services
 
         public List<string> ModPreview { get; set; } = new List<string>();
 
+        /// <summary>这个版本实际会用的 mods 目录（工作目录下的 mods）。</summary>
+        public string ModsPath { get; set; } = string.Empty;
+
+        /// <summary>mods 目录里的文件清单，最多 300 条（Mod 管理页用）。</summary>
+        public List<ModFileEntry> ModFiles { get; set; } = new List<ModFileEntry>();
+
+        /// <summary>这个版本实际会用的 resourcepacks 目录。</summary>
+        public string ResourcePacksPath { get; set; } = string.Empty;
+
+        /// <summary>resourcepacks 目录里的内容（材质包管理页用）。</summary>
+        public List<ModFileEntry> ResourcePackFiles { get; set; } = new List<ModFileEntry>();
+
+        /// <summary>这个版本实际会用的 shaderpacks 目录。</summary>
+        public string ShaderPacksPath { get; set; } = string.Empty;
+
+        /// <summary>shaderpacks 目录里的内容（光影管理页用）。</summary>
+        public List<ModFileEntry> ShaderPackFiles { get; set; } = new List<ModFileEntry>();
+
+        /// <summary>
+        /// 版本目录里的 StarLaunch.instance.json。
+        /// null = 这个版本什么都没改，全部跟随全局设置。
+        /// </summary>
+        public InstanceSettings? Settings { get; set; }
+
         /// <summary>需要的 Java 主版本号，例如 21；JSON 没写时为空。</summary>
         public string Java { get; set; } = string.Empty;
 
@@ -74,6 +98,25 @@ namespace StarLaunch.Services
 
         /// <summary>所属文件夹自己的隔离策略（每个文件夹可以不一样）。</summary>
         public string DirIsolation { get; set; } = GameDirs.IsolationAll;
+    }
+
+    /// <summary>mods / resourcepacks / shaderpacks 目录里的一个条目（资源管理页的一行）。</summary>
+    internal sealed class ModFileEntry
+    {
+        /// <summary>文件名，保留后缀：foo.jar / bar.jar.disabled。</summary>
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>.jar 为启用，.jar.disabled 为已禁用（和 PCL / HMCL 的约定一致）。</summary>
+        public bool Enabled { get; set; } = true;
+
+        /// <summary>文件大小（字节），读不到时为 0。</summary>
+        public long Size { get; set; }
+
+        /// <summary>
+        /// 这一条是文件夹而不是文件（光影 / 材质包允许直接放文件夹）。
+        /// 文件夹没法靠改名禁用 —— 游戏照样能读到里面的 pack.mcmeta，所以只能删。
+        /// </summary>
+        public bool IsFolder { get; set; }
     }
 
     /// <summary>一个游戏文件夹的扫描摘要，画在版本页左侧的「文件夹列表」里。</summary>
@@ -192,7 +235,9 @@ namespace StarLaunch.Services
                 }
 
                 var lastPlayed = ReadLauncherProfiles(gameDir);
-                var modsCache = new Dictionary<string, (int Count, List<string> Preview)>(StringComparer.OrdinalIgnoreCase);
+                // 自己记的启动时间更准：官方启动器不一定会去写 launcher_profiles.json
+                PlayStats.MergeLastPlayed(gameDir, lastPlayed);
+                var modsCache = new Dictionary<string, (int Count, List<string> Preview, List<ModFileEntry> Files)>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (string folder in folders)
                 {
@@ -216,6 +261,13 @@ namespace StarLaunch.Services
                         entry.Mc = GuessMcVersion(name) ?? "未知";
                         entry.LastPlayed = FormatTime(lastPlayed, name, folder);
                         entry.GameDir = gameDir;
+                        entry.ModsPath = Path.Combine(gameDir, "mods");
+                        entry.ResourcePacksPath = Path.Combine(gameDir, "resourcepacks");
+                        entry.ResourcePackFiles = ListAssetFiles(entry.ResourcePacksPath, "resourcepacks");
+                        entry.ShaderPacksPath = Path.Combine(gameDir, "shaderpacks");
+                        entry.ShaderPackFiles = ListAssetFiles(entry.ShaderPacksPath, "shaderpacks");
+                        // 就算 JSON 坏了，用户改过的显示名 / 收藏也还是要显示出来
+                        entry.Settings = InstanceSettingsStore.Load(folder);
                         result.Versions.Add(entry);
                         continue;
                     }
@@ -235,16 +287,31 @@ namespace StarLaunch.Services
 
                     entry.HasJar = FindVersionJar(folder, name) != null;
 
-                    // 隔离：先看目录里有没有自己的游戏数据，再按策略判断「应该」怎么用
+                    // 版本自己的设置：文件里没写的字段一律跟随全局
+                    var settings = InstanceSettingsStore.Load(folder);
+                    entry.Settings = settings;
+
+                    // 隔离：先看目录里有没有自己的游戏数据，再按策略判断「应该」怎么用。
+                    // 版本设置里单独选了「隔离 / 不隔离」时，以版本设置为准。
                     entry.Isolated = HasIsolationContent(folder);
-                    entry.IsolatedByPolicy = ShouldIsolate(result.Isolation, loader);
-                    entry.Mismatch = entry.Isolated && !entry.IsolatedByPolicy;
-                    entry.GameDir = entry.IsolatedByPolicy ? folder : gameDir;
+                    bool isolateByPolicy = ShouldIsolate(result.Isolation, loader);
+                    if (settings?.Isolation == "on") isolateByPolicy = true;
+                    else if (settings?.Isolation == "off") isolateByPolicy = false;
+
+                    entry.IsolatedByPolicy = isolateByPolicy;
+                    entry.Mismatch = entry.Isolated && !isolateByPolicy;
+                    entry.GameDir = isolateByPolicy ? folder : gameDir;
 
                     var mods = CountMods(entry.GameDir, modsCache);
                     entry.Mods = mods.Count;
-                    entry.ModsShared = !entry.IsolatedByPolicy;
+                    entry.ModsShared = !isolateByPolicy;
                     entry.ModPreview = mods.Preview;
+                    entry.ModFiles = mods.Files;
+                    entry.ModsPath = Path.Combine(entry.GameDir, "mods");
+                    entry.ResourcePacksPath = Path.Combine(entry.GameDir, "resourcepacks");
+                    entry.ResourcePackFiles = ListAssetFiles(entry.ResourcePacksPath, "resourcepacks");
+                    entry.ShaderPacksPath = Path.Combine(entry.GameDir, "shaderpacks");
+                    entry.ShaderPackFiles = ListAssetFiles(entry.ShaderPacksPath, "shaderpacks");
                     entry.Kind = loader != "Vanilla" || entry.Mods > 0 ? "modded" : "vanilla";
 
                     entry.Size = DirectorySize(folder);
@@ -619,11 +686,15 @@ namespace StarLaunch.Services
             return false;
         }
 
-        private static (int Count, List<string> Preview) CountMods(
+        /// <summary>Mod 管理页最多列这么多文件，避免一个几千模组的整合包把 JSON 撑爆。</summary>
+        private const int ModFileLimit = 300;
+
+        private static (int Count, List<string> Preview, List<ModFileEntry> Files) CountMods(
             string gameDir,
-            Dictionary<string, (int Count, List<string> Preview)> cache)
+            Dictionary<string, (int Count, List<string> Preview, List<ModFileEntry> Files)> cache)
         {
             var preview = new List<string>();
+            var files = new List<ModFileEntry>();
             if (cache.TryGetValue(gameDir, out var cached)) return cached;
 
             int count = 0;
@@ -632,24 +703,147 @@ namespace StarLaunch.Services
                 string modsDir = Path.Combine(gameDir, "mods");
                 if (Directory.Exists(modsDir))
                 {
-                    var jars = Directory.EnumerateFiles(modsDir, "*.jar", SearchOption.TopDirectoryOnly)
+                    // .jar 是启用的，.jar.disabled 是用户在游戏里 / 启动器里禁用的
+                    var jars = Directory.EnumerateFiles(modsDir, "*.jar*", SearchOption.TopDirectoryOnly)
+                        .Where(IsModFile)
                         .OrderBy(path => Path.GetFileName(path), StringComparer.CurrentCultureIgnoreCase)
                         .ToList();
                     count = jars.Count;
+
                     foreach (string jar in jars.Take(3))
                     {
-                        preview.Add(ReadableModName(Path.GetFileNameWithoutExtension(jar)));
+                        preview.Add(ReadableModName(ModStem(Path.GetFileName(jar))));
+                    }
+
+                    foreach (string jar in jars.Take(ModFileLimit))
+                    {
+                        files.Add(new ModFileEntry
+                        {
+                            Name = Path.GetFileName(jar),
+                            Enabled = jar.EndsWith(".jar", StringComparison.OrdinalIgnoreCase),
+                            Size = FileSize(jar)
+                        });
                     }
                 }
             }
             catch (Exception)
             {
                 count = 0;
+                files.Clear();
             }
 
-            var value = (count, preview);
+            var value = (count, preview, files);
             cache[gameDir] = value;
             return value;
+        }
+
+        /// <summary>mods 里只认这两种：foo.jar / foo.jar.disabled。</summary>
+        private static bool IsModFile(string path)
+        {
+            return path.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith(".jar.disabled", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>这一类资源认的后缀：Mod 是 .jar，材质包和光影都是 .zip。</summary>
+        public static string AssetExtension(string kind)
+        {
+            return string.Equals(kind, "mods", StringComparison.OrdinalIgnoreCase) ? ".jar" : ".zip";
+        }
+
+        /// <summary>
+        /// 列出一个资源目录（mods / resourcepacks / shaderpacks）里的内容。
+        /// 材质包和光影允许直接放文件夹，所以那边会把子目录也列出来并标成 IsFolder
+        /// （文件夹没法靠改名禁用 —— 游戏照样读得到里面的 pack.mcmeta）。
+        /// 目录不存在时返回空列表，不抛异常。
+        /// </summary>
+        public static List<ModFileEntry> ListAssetFiles(string dir, string kind)
+        {
+            var files = new List<ModFileEntry>();
+            if (string.IsNullOrWhiteSpace(dir)) return files;
+
+            string extension = AssetExtension(kind);
+            bool foldersAllowed = !string.Equals(kind, "mods", StringComparison.OrdinalIgnoreCase);
+
+            try
+            {
+                if (!Directory.Exists(dir)) return files;
+
+                var found = Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly)
+                    .Where(path => IsAssetFile(path, extension))
+                    .OrderBy(path => Path.GetFileName(path), StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+
+                foreach (string file in found.Take(ModFileLimit))
+                {
+                    files.Add(new ModFileEntry
+                    {
+                        Name = Path.GetFileName(file),
+                        Enabled = !file.EndsWith(".disabled", StringComparison.OrdinalIgnoreCase),
+                        Size = FileSize(file)
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                files.Clear();
+            }
+
+            if (!foldersAllowed) return files;
+
+            try
+            {
+                foreach (string folder in Directory.EnumerateDirectories(dir)
+                    .OrderBy(path => Path.GetFileName(path), StringComparer.CurrentCultureIgnoreCase)
+                    .Take(ModFileLimit))
+                {
+                    files.Add(new ModFileEntry
+                    {
+                        Name = Path.GetFileName(folder),
+                        Enabled = true,
+                        IsFolder = true
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                // 子目录读不了就只列文件，不影响已经拿到的部分
+            }
+
+            return files;
+        }
+
+        /// <summary>foo.jar / foo.jar.disabled（材质包、光影是 .zip）。</summary>
+        private static bool IsAssetFile(string path, string extension)
+        {
+            return path.EndsWith(extension, StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith(extension + ".disabled", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>文件名去掉 .jar / .jar.disabled 后缀。</summary>
+        private static string ModStem(string fileName)
+        {
+            const string disabled = ".jar.disabled";
+            if (fileName.EndsWith(disabled, StringComparison.OrdinalIgnoreCase))
+            {
+                return fileName.Substring(0, fileName.Length - disabled.Length);
+            }
+            if (fileName.EndsWith(".jar", StringComparison.OrdinalIgnoreCase))
+            {
+                return fileName.Substring(0, fileName.Length - 4);
+            }
+            return fileName;
+        }
+
+        private static long FileSize(string path)
+        {
+            try
+            {
+                return new FileInfo(path).Length;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
         }
 
         /// <summary>fabric-api-0.92.2+1.20.4.jar → fabric-api。</summary>

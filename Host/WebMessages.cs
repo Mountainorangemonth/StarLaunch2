@@ -25,6 +25,26 @@ namespace StarLaunch
                     return;
                 }
 
+                // 账户：登录 / 切换 / 退出 / 验证服探测
+                if (HandleAccountMessage(type.GetString(), root)) return;
+
+                // 下载：装原版版本 / 装 Mod、光影、材质、整合包 / 取消任务
+                if (HandleDownloadMessage(type.GetString(), root)) return;
+
+                // 系统：内存优化（主页快捷操作，实现在 Host/MemoryMessages.cs）
+                if (type.GetString() == "memory-optimize")
+                {
+                    OptimizeMemory();
+                    return;
+                }
+
+                // 启动游戏 / Java 列表 / 内存读数 / 主机设置 / 检查更新
+                // （实现在 Host/LaunchMessages.cs，回复统一走 reply 通道）
+                if (HandleLaunchMessage(type.GetString(), root)) return;
+
+                // 版本设置「修改」页：查看 / 更换已安装的加载器（Host/LoaderMessages.cs）
+                if (HandleLoaderMessage(type.GetString(), root)) return;
+
                 // 设置页“打开文件夹”按钮
                 if (type.GetString() == "open-wallpapers")
                 {
@@ -60,8 +80,27 @@ namespace StarLaunch
                         RunOpen("instance-dir", ReadString(root, "id"),
                             () => OpenInstanceDir(ReadString(root, "path")));
                         return;
+                    // 版本资源管理：Mod / 材质包 / 光影 的启用、禁用、删除
+                    case "instance-asset":
+                        InstanceAsset(root);
+                        return;
+                    case "open-asset-dir":
+                        RunOpen("asset-dir", ReadString(root, "id"),
+                            () => OpenAssetDir(ReadString(root, "dir"), ReadString(root, "kind")));
+                        return;
                     case "import-modpack":
                         ImportModpack();
+                        return;
+                    // 版本设置：写进 versions\<版本名>\StarLaunch.instance.json
+                    case "save-instance-settings":
+                        SaveInstanceSettings(root);
+                        return;
+                    case "reset-instance-settings":
+                        ResetInstanceSettings(root);
+                        return;
+                    // 导出整合包：勾选的内容打包成一个 zip
+                    case "export-instance":
+                        ExportInstance(root);
                         return;
                 }
 
@@ -76,6 +115,10 @@ namespace StarLaunch
                         return;
                     case "reset-custom-home":
                         ResetCustomHome();
+                        return;
+                    // 内存不足时启动失败浮层上的「打开虚拟内存设置」
+                    case "open-pagefile-settings":
+                        RunOpen("pagefile", ReadString(root, "id"), OpenPageFileSettings);
                         return;
                     case "open-path":
                         // 自定义主页里的「打开文件 / 打开文件夹」事件
@@ -152,6 +195,19 @@ namespace StarLaunch
                     ["message"] = ex.Message
                 });
             }
+        }
+
+        /// <summary>打开「系统属性 → 高级」：虚拟内存设置就在那一页。</summary>
+        private static ShellLaunchResult OpenPageFileSettings()
+        {
+            string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if (string.IsNullOrWhiteSpace(windows))
+            {
+                return ShellLaunchResult.Failure(string.Empty, "找不到 Windows 目录");
+            }
+
+            string exe = System.IO.Path.Combine(windows, "System32", "SystemPropertiesAdvanced.exe");
+            return ShellLaunch.Open(exe);
         }
 
         private static ShellLaunchResult OpenExternal(string? url)

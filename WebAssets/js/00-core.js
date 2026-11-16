@@ -36,7 +36,12 @@
         uiPrefs: 'starlaunch.ui.v3',
         notice: 'starlaunch.notice.v1',
         noticeRead: 'starlaunch.notice.read.v1',
-        launchLog: 'starlaunch.launchlog.v1'
+        launchLog: 'starlaunch.launchlog.v1',
+        // 版本设置：只有浏览器预览（没有宿主）时用；正经运行时以版本目录里的
+        // StarLaunch.instance.json 为准（见 Services/InstanceSettings.cs）
+        instancePrefs: 'starlaunch.instance.v1',
+        // 账户：同样只在浏览器预览里当兜底（真正的档案在启动器目录的 accounts.json）
+        accountPrefs: 'starlaunch.account.v1'
     };
 
     function readStore(key, fallback) {

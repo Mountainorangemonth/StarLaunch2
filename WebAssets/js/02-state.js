@@ -18,20 +18,27 @@
 
     const ui = readStore(STORE.uiPrefs, {
         activeId: 'winter', instFilter: 'all', dlCat: 'version', source: 'BMCLAPI', setTab: 'appearance',
-        folderFilter: 'all'
+        folderFilter: 'all', winStyle: 'right'
     });
 
-    const launchPrefs = readStore(STORE.launchPrefs, {
+    /**
+     * 启动设置的出厂值。单独拎出来是为了「恢复默认」能整套还原
+     * （以前这里只重置外观，启动设置得一项项手改回去）。
+     */
+    const DEFAULT_LAUNCH_PREFS = {
         mem: 8, updater: true, minimize: false, concurrency: 8,
         isolation: 'all', windowTitle: '', customInfo: 'StarLaunch',
         visibility: 'unchanged', priority: 'normal',
         windowMode: 'custom', winW: 854, winH: 480,
         memMode: 'auto', memOptimize: true,
         jvmArgs: '-XX:+OmitStackTraceInFastThrow -Djdk.lang.Process.allowAmbiguousCommands=True -Dfml.ignoreInvalidMinecraftCertificates=True -Dfml.ignorePatchDiscrepancies=True',
-        gameArgs: '', preCommand: '', javaList: 'java21', memoryManager: 'g1',
+        gameArgs: '', preCommand: '', javaList: 'auto', memoryManager: 'g1',
         disableWrapper: false, disableUnsafe: false, highPerfGpu: true,
         advancedOpen: true, advancedNote: true
-    });
+    };
+
+    // 传副本：没有存档时 readStore 会把 fallback 本身返回，直接改就会污染默认值
+    const launchPrefs = readStore(STORE.launchPrefs, Object.assign({}, DEFAULT_LAUNCH_PREFS));
 
     // 版本列表：宿主可用时会被 /api/versions 的真实数据整体替换
     let instances = MOCK_INSTANCES;
@@ -45,7 +52,10 @@
     const EMPTY_INSTANCE = {
         id: '', name: '未选择实例', loader: 'Vanilla', loaderName: 'Vanilla', mc: '—',
         mods: 0, mem: 8, java: '—', kind: 'vanilla', tone: 'plain', last: '尚未启动',
-        path: '', modPreview: [], dirId: '', dirPath: '', dirName: '', dirIsolation: 'all'
+        path: '', modPreview: [], modFiles: [], modsPath: '',
+        shaderPackFiles: [], shaderPacksPath: '',
+        resourcePackFiles: [], resourcePacksPath: '',
+        dirId: '', dirPath: '', dirName: '', dirIsolation: 'all'
     };
 
     const getInstance = (id) => instances.find((item) => item.id === id) || instances[0] || EMPTY_INSTANCE;
@@ -71,6 +81,7 @@
             set: (value) => { scanState = value; }
         },
         EMPTY_INSTANCE: { value: EMPTY_INSTANCE, enumerable: true },
+        DEFAULT_LAUNCH_PREFS: { value: DEFAULT_LAUNCH_PREFS, enumerable: true },
         getInstance: { value: getInstance, enumerable: true },
         activeInstance: { value: activeInstance, enumerable: true },
         modsLabel: { value: modsLabel, enumerable: true }

@@ -23,6 +23,8 @@
        16-xaml-parse  Custom.xaml 解析
        17-xaml-view   Custom.xaml 渲染
        18-select      下拉框外观（原生 select 换成自绘浮层）
+       19-instance    版本设置（概览 / 设置 / Mod 管理 / 光影 / 材质包 / 导出）
+       20-account     账户：三种登录、账号切换、皮肤头像
    ===================================================================== */
 (function (global) {
     'use strict';
@@ -47,11 +49,18 @@
         SL.ui.bindPopovers();
         SL.versions.bindVersionList();
         SL.home.bindHomeMemory();
+        SL.home.bindMemoryOptimize();
+        // 主页「本周游戏」：真实游戏时长，数据在宿主的 playtime.json 里
+        SL.home.bindWeek();
         SL.versions.bindGameDir();
         SL.folders.bindFolders();
         SL.launch.bindLaunch();
+        SL.account.bindAccount();
         SL.download.bindDownload();
+        // 把上次设置的并发数同步给宿主下载器
+        SL.download.setConcurrency(SL.state.launchPrefs.concurrency, false);
         SL.settings.bindSettings();
+        SL.instance.bindInstanceSettings();
         SL.notice.bindNotice();
         SL.ui.bindQuote();
         SL.ui.bindHeroParallax();
@@ -73,7 +82,7 @@
             btn.classList.toggle('is-active', active);
             btn.setAttribute('aria-pressed', String(active));
         });
-        $$('.source, [data-dl-source]').forEach((btn) => {
+        $$('.source:not([data-mod-source]), [data-dl-source]').forEach((btn) => {
             const value = btn.dataset.source || btn.dataset.dlSource;
             const active = value === ui.source;
             btn.classList.toggle('is-active', active);
@@ -104,9 +113,12 @@
             SL.folders.renderFolderList();
         }
 
+        // 账户：拉一次真实档案（没有宿主时退回本地离线账号）
+        SL.account.load();
         SL.download.syncCatalogForm();
         SL.download.renderDownloads();
         SL.download.renderQueue();
+        SL.download.renderHistory();
         SL.appearance.renderPalette();
         SL.appearance.renderWallpaperUI();
         SL.notice.renderNoticeSettings();

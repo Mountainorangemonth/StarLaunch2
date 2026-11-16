@@ -168,6 +168,23 @@ node tools/build-mcu.mjs
   `%LOCALAPPDATA%\StarLaunch\wallpapers`），网页端不保存图片数据，
   只保存当前图片名和轮播设置。
 
+## 版本设置浮层
+
+版本详情里的「实例设置」会打开一个 PCL 式的六栏浮层（`js/19-instance.js` +
+`css/16-instance.css`）：概览 / 设置 / Mod 管理 / 光影 / 材质包 / 导出。它和确认框一样是网页自绘的
+`.iset` 层，不新开原生窗口；左栏切分组、右侧内容独立滚动，导出按钮常驻底部。
+
+- 设置按「只存改过的字段」落到 `.minecraft\versions\<版本名>\StarLaunch.instance.json`，
+  文件里没有的项跟随设置页里的全局启动配置（内存、Java、JVM 参数、隔离、窗口标题……）；
+- 宿主用 `save-instance-settings` / `reset-instance-settings` / `export-instance`
+  三条消息负责写盘和打包，字段表和接口约定见仓库根目录 `README.md`；
+- Mod / 光影 / 材质包三页共用一套渲染（`ASSET_KINDS` 表 + `renderAsset()`）：
+  点一行选中（可多选），按住左键上下拖可以连选，底部浮出操作栏做启用 / 禁用 /
+  删除 / 取消选择；启用禁用走 `instance-asset`（改后缀 `.disabled`，一次可以带
+  一批文件名），删除丢回收站，打开目录走 `open-asset-dir`（目录不存在时宿主会先建出来）；
+- 浏览器预览里没有宿主，改为写 `starlaunch.instance.v1`，交互完全一致；
+- 打开时给 `.app` 加 `inert`，Tab 不会跑到浮层后面；Esc 关浮层（下拉开着时先关下拉）。
+
 ## 预览
 
 | 浅色 | 深色 |

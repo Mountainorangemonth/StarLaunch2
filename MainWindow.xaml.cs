@@ -34,6 +34,8 @@ namespace StarLaunch
             ShellLaunch.SuppressSystemErrorDialogs();
 
             InitializeComponent();
+            // 「记住窗口尺寸」开着时用上次关闭时的宽高（见 Host/TrayAndStartup.cs）
+            RestoreWindowSize();
             StateChanged += OnWindowStateChanged;
             Loaded += async (_, __) => await InitWebViewAsync();
         }
@@ -42,6 +44,17 @@ namespace StarLaunch
         {
             base.OnSourceInitialized(e);
             TryEnableRoundedCorners();
+
+            // 「关闭时最小化到托盘」开着的时候，一启动就把图标放进通知区：
+            // 用户开了后台却看不到任何图标，会以为设置没生效（以前就是这样）。
+            try
+            {
+                if (LauncherConfigStore.Current.CloseToTray) ShowTrayIcon();
+            }
+            catch (Exception)
+            {
+                // 托盘起不来不影响主界面
+            }
         }
 
         /// <summary>
@@ -136,7 +149,16 @@ namespace StarLaunch
             webView.CoreWebView2.Settings.IsNonClientRegionSupportEnabled = true;
 
             // 自定义主页：Custom.xaml 建好并监听改动（页面加载完再第一次推送）
-            core.NavigationCompleted += (_, __) => StartCustomHome();
+            core.NavigationCompleted += (_, __) =>
+            {
+                StartCustomHome();
+                // 账号体检：令牌过期就静默刷新一次（失败不打扰用户）
+                StartAccountValidation();
+                // 下载队列 → 网页的进度推送
+                StartDownloadBridge();
+                // 清安装缓存 + 检查启动器更新（两个都不阻塞界面）
+                RunStartupTasks();
+            };
             Closed += (_, __) => StopCustomHomeWatcher();
 
             // 2. 导航到虚拟域名（此地址磁盘上不存在）

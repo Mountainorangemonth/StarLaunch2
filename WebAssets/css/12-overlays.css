@@ -101,56 +101,123 @@
     to { opacity: 1; transform: none; }
 }
 
-.launch-head { display: flex; align-items: center; gap: 12px; }
-
-.launch-mark {
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    flex: none;
-    border-radius: 13px;
-    background: var(--brand);
-    color: var(--on-brand);
-    box-shadow: 0 4px 14px rgba(var(--brand-rgb), 0.34);
+/* ── 启动状态：右下角的一行提示 + 停止按钮 ───────────────────
+   启动不再开弹窗。准备阶段这里只显示一行「正在启动…」（不会挡住任何
+   可点的东西），游戏起来之后同一块位置变成「停止游戏」。
+   .launch-state 自己不吃鼠标事件，只有里面的按钮吃。 */
+.launch-state {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 150;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: none;
 }
 
-.launch-mark .icon { width: 16px; height: 16px; }
-.launch-copy { display: flex; flex-direction: column; min-width: 0; }
-.launch-kicker { font-size: var(--fs-micro); color: var(--text-2); }
-.launch-head h2 { font-size: var(--fs-h2); font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.launch-head .icon-btn { margin-left: auto; }
+.launch-state[hidden] { display: none; }
 
-.launch-meta { margin: 10px 0 12px; font-size: var(--fs-xs); color: var(--text-2); }
-
-.launch-bar { height: 6px; border-radius: 999px; background: rgba(var(--brand-rgb), 0.16); overflow: hidden; }
-.launch-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand), var(--hero-solid)); transition: width 520ms var(--ease); }
-
-.launch-status { display: flex; justify-content: space-between; margin-top: 8px; font-size: var(--fs-xs); color: var(--text-2); }
-.launch-status b { color: var(--text); }
-
-.launch-log {
-    height: 104px;
-    margin-top: 12px;
-    padding: 9px 11px;
-    overflow-y: auto;
-    border-radius: var(--r-xs);
-    background: rgba(var(--shadow-rgb), 0.06);
-    box-shadow: inset 0 0 0 1px var(--line-soft);
-    font-family: "Cascadia Code", Consolas, monospace;
-    font-size: 11px;
-    line-height: 1.7;
+/* 准备阶段的一行提示：够显眼，但不挡下面的界面 */
+.launch-hint {
+    max-width: 286px;
+    margin: 0;
+    padding: 8px 13px;
+    border-radius: var(--r-md);
+    background: var(--glass-float);
+    box-shadow: var(--shadow-2), inset 0 1px 0 var(--specular);
     color: var(--text-2);
+    font-size: var(--fs-xs);
+    line-height: 1.55;
+    text-align: right;
+    /* 提示里用 \n 分行：状态一句、下一步一句 */
+    white-space: pre-line;
+    animation: pop-in 200ms var(--ease) backwards;
 }
 
-[data-mode="dark"] .launch-log { background: rgba(0, 0, 0, 0.24); }
-.launch-log p { animation: log-in 260ms var(--ease) backwards; }
-@keyframes log-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.launch-hint b { color: var(--text); font-weight: 650; }
 
-.modal.is-done .launch-mark { background: var(--brand-container); color: var(--on-brand-container); }
-.launch-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+@supports (backdrop-filter: blur(1px)) {
+    .launch-hint { backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(1.6); }
+}
 
-/* 确认弹窗 —— 和启动弹窗共用 .modal 的遮罩与材质，只是内容更窄 */
+/* 游戏已经在跑：同一块位置的「停止游戏」卡片 */
+.launch-dock {
+    overflow: hidden;
+    border-radius: var(--r-md);
+    background: var(--glass-float);
+    box-shadow: var(--shadow-3), inset 0 1px 0 var(--specular);
+    animation: pop-in 220ms var(--ease) backwards;
+}
+
+.launch-dock[hidden] { display: none; }
+
+@supports (backdrop-filter: blur(1px)) {
+    .launch-dock { backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(1.7); }
+}
+
+.launch-dock-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 13px;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    text-align: left;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background-color var(--dur-fast) ease;
+}
+
+.launch-dock-main:hover { background: rgba(var(--m3-error-rgb, 179, 38, 30), 0.08); }
+.launch-dock-main:active { transform: scale(0.985); }
+.launch-dock-main:disabled { opacity: 0.55; cursor: default; }
+
+/* 那个「在运行」的小绿点：进程退出时 JS 会把它换成灰的 */
+.launch-dock-dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--brand);
+    box-shadow: 0 0 0 3px rgba(var(--brand-rgb), 0.16);
+}
+
+.launch-dock.is-over .launch-dock-dot {
+    background: var(--text-2);
+    box-shadow: 0 0 0 3px rgba(var(--shadow-rgb), 0.12);
+}
+
+.launch-dock-copy { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.launch-dock-copy b { font-size: var(--fs-sm); font-weight: 650; }
+.launch-dock-copy span { font-size: var(--fs-micro); color: var(--text-2); }
+
+.launch-dock-main .icon { width: 14px; height: 14px; margin-left: 4px; color: var(--text-2); }
+.launch-dock-main:hover .icon { color: var(--m3-error, #b3261e); }
+
+/* 停止请求进行中的细进度条（别让人以为点了没反应） */
+.launch-dock-bar { display: none; height: 2px; background: rgba(var(--brand-rgb), 0.18); }
+.launch-dock.is-stopping .launch-dock-bar { display: block; }
+.launch-dock-bar i { display: block; width: 30%; height: 100%; border-radius: inherit; background: var(--brand); animation: dock-run 900ms linear infinite; }
+
+@keyframes dock-run {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(340%); }
+}
+
+/* 启动按钮在「启动中 / 运行中」时变成取消入口 */
+body[data-launch="preparing"] .btn-launch,
+body[data-launch="running"] .btn-launch {
+    background: rgba(var(--brand-rgb), 0.14);
+    color: var(--brand);
+    box-shadow: none;
+}
+
+/* 确认弹窗 —— 和别的浮层共用 .modal 的遮罩与材质，只是内容更窄 */
 .confirm-modal { z-index: 140; }
 
 .confirm-card { width: min(420px, 100%); }

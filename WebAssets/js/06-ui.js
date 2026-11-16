@@ -294,8 +294,9 @@
             }
 
             if (event.key !== 'Escape') return;
-            const modal = $('#launchModal');
-            if (modal && !modal.hidden) {
+            // 启动已经不开弹窗了：准备阶段按 Esc 等于「算了，取消这次启动」
+            const launchState = $('#launchState');
+            if (launchState && !launchState.hidden) {
                 closeLaunch();
                 return;
             }

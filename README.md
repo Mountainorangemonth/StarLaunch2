@@ -11,7 +11,6 @@
 - [它是什么](#它是什么)
 - [设计取向](#设计取向)
 - [功能一览](#功能一览)
-- [界面预览](#界面预览)
 - [技术栈](#技术栈)
 - [快速开始](#快速开始)
 - [架构一览](#架构一览)
@@ -62,6 +61,11 @@ StarLaunch 是一个 Windows 上的 Minecraft 启动器，支持多游戏文件�
 - 三种方式都是真联网：**微软账户**（设备代码流 → XBL → XSTS → Minecraft）、
   **外置登录**（authlib-injector / Yggdrasil，自动发现 API 根）、**离线登录**
   （UUID 用 `MD5("OfflinePlayer:名字")`，和 PCL、离线服务端同一套算法）。
+- **没有 Azure 应用 ID 时用「官方导入」**：读官方启动器的 `launcher_accounts.json`
+  （`%APPDATA%\.minecraft\` 与商店版的 `LocalCache\Local\.minecraft\` 都找），
+  用里面的 Minecraft 令牌直接调 `/minecraft/profile` 校验后落盘，全程不需要注册任何应用。
+  局限是官方启动器不交出刷新令牌，导入的令牌约 24 小时过期，过期后重登一次再导入；
+  想自动续期还是得有自己的应用 ID。
 - 令牌只留在宿主，网页通过 `/api/accounts` 只拿展示字段；微软令牌快过期时用
   `refresh_token` 静默续期，外置登录先 `validate` 再决定要不要 `refresh`。
 - 头像是真实皮肤：宿主把整张 64×64 PNG 交给网页，CSS 按 `background-size: 800%` 裁头部，
@@ -142,24 +146,6 @@ StarLaunch 是一个 Windows 上的 Minecraft 启动器，支持多游戏文件�
 - 内存优化是 `library.c`（Idle-Aware Memory Optimization）的 C# 移植：清待机列表、钳文件缓存，
   并且**只压真正空闲的进程**（采两轮 CPU 时间判断），前台窗口和启动器自己永远跳过。
 
-## 界面预览
-
-| 启动页（深色） | 启动页（浅色） |
-| --- | --- |
-| ![启动页深色](WebAssets/preview/1.png) | ![启动页浅色](WebAssets/preview/5.png) |
-
-| 版本页 | 下载页 |
-| --- | --- |
-| ![版本页](WebAssets/preview/3.png) | ![下载页](WebAssets/preview/7.png) |
-
-| 实例选择 | 设置页 |
-| --- | --- |
-| ![实例选择](WebAssets/preview/2.png)
-
-| 壁纸取色 | 窄窗口（1024 px） |
-| --- | --- |
-| ![壁纸取色](WebAssets/preview/8.png)
-
 ## 技术栈
 
 | 层 | 技术 |
@@ -207,15 +193,52 @@ dotnet run
 
 想改回普通权限：把 `app.manifest` 里那行换成 `level="asInvoker"`，重新生成即可。
 
-### 打一个便携版
+### 打包
+
+**单文件版（推荐发给人用）**
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained true
+dotnet publish
 ```
 
-产物是一个文件夹（exe + 依赖 + 运行时），整个目录拷走就能用。壁纸、配置、`Custom.xaml`、
-WebView2 缓存都落在 exe 同级；放在 `Program Files` 这种不可写的位置会自动退到
-`%LOCALAPPDATA%\StarLaunch`。
+就这一条，不用加任何参数。产物只有一个文件：
+`bin\Release\net10.0-windows\win-x64\publish\StarLaunch.exe`（约 63 MB）。
+
+单文件是**发布时的默认行为**，配置在 `StarLaunch.csproj` 里用
+`Condition="'$(_IsPublishing)' == 'true'"` 圈住：只有 `dotnet publish` 会命中，
+`dotnet build` 和 VS 的「生成」照旧输出普通目录（调试、热重载、断点都不受影响）。
+
+> 注意区分三个目录，别在错的地方找 exe：
+> `bin\Debug\...`（调试）、`bin\Release\net10.0-windows\`（普通生成，框架依赖）、
+> **`bin\Release\net10.0-windows\win-x64\publish\`（发布，单文件）**。
+
+同时打开的这几项：
+
+| 属性 | 为什么 |
+| --- | --- |
+| `PublishSingleFile` | 托管 dll、运行时、嵌入资源全塞进一个 exe |
+| `IncludeNativeLibrariesForSelfExtract` | WebView2 的原生库没法嵌进 exe 映像，缺这条会报找不到 DLL |
+| `EnableCompressionInSingleFile` | 138 MB → 63 MB，代价是启动多解压几百毫秒 |
+| `DebugType=none` | 发布版不带 pdb |
+| `AllowedReferenceRelatedFileExtensions` | 滤掉 WebView2 那 3 个 `.xml` 文档 |
+
+**不要开 `PublishTrimmed`**：WPF 和 WebView2 大量走反射，裁剪后运行时才炸。
+嫌启动慢可以加 `-p:PublishReadyToRun=true`（体积涨到约 90 MB，换更快的冷启动）。
+
+**文件夹版（想看清楚里面有什么 / 要自己控制更新粒度）**
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false
+```
+
+产物是一个文件夹（exe + 依赖 + 运行时），整个目录拷走就能用。
+
+两种方式都是 **self-contained**：目标机不需要装 .NET 运行时。但 **WebView2 Runtime 不打包**，
+Win11 一般自带，Win10 缺了会在启动时弹提示并退出（可另行分发 Evergreen Bootstrapper）。
+
+壁纸、配置、`Custom.xaml`、WebView2 缓存都落在 exe 同级；放在 `Program Files` 这种不可写的
+位置会自动退到 `%LOCALAPPDATA%\StarLaunch`。单文件版同理，不会往 exe 所在目录塞解压产物
+（原生库解到 `%TEMP%\.net` 下）。
 
 ### 只想看界面
 
@@ -286,6 +309,13 @@ C# 侧除了 `App.xaml.cs` 和 `Services/`，其余都是同一个 `MainWindow` 
   否则 JVM 直接 `Improperly specified VM option` 退出。
 - **C# 的隐式 using 只有 5 个**，用 `File` / `Path` 要自己写 `using System.IO;`。
 - **深色模式别用属性选择器压配色**，只覆盖 `--btn-bg` 之类的自定义属性，否则会盖掉 `--accent`。
+- **微软应用注册的三个选项要对上代码**：设备码流默认走 `login.microsoftonline.com/consumers`，
+  所以「受支持的帐户类型」必须含「个人 Microsoft 帐户」；如果只勾了「仅此组织目录」，
+  要把租户域填进设置里的「租户（authority）」，否则设备码请求会报 `AADSTS700016`。
+- **内置了应用身份**：`AccountService.BuiltInClientId` 里放着一个公共客户端应用 ID，
+  优先级是「环境变量 `MS_CLIENT_ID` → 设置里手填 → 内置值」，所以开箱即用、不用注册 Azure 应用。
+  发给别人前想换成自己的：设环境变量，或在登录浮层点「使用我自己的应用 ID」。
+  网页永远只拿脱敏串（`b927••••••••0b7f`），完整 ID 不出宿主。
 - **微软登录的 client_id 不能用别人的**：设备码流用的应用得在「有目录（租户）」的账号下注册。
   纯个人 Microsoft 帐户没有目录时，门户会提示「这些应用程序…不包含在任何目录中」，微软也不再允许
   在目录外建应用 —— 先用面向学生的 Azure / Azure 免费帐户开订阅拿到默认目录，再「应用注册」新建应用：
